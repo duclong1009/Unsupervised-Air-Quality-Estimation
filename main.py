@@ -25,6 +25,7 @@ parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--early_stop', type=int, default=20)
 
 
+
 args = parser.parse_args()
 print(args)
 
