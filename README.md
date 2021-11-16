@@ -9,3 +9,7 @@ pip install torch-sparse -f https://pytorch-geometric.com/whl/torch-1.8.0+cu111.
 pip install torch-cluster -f https://pytorch-geometric.com/whl/torch-1.8.0+cu111.html  
 pip install torch-spline-conv -f https://pytorch-geometric.com/whl/torch-1.8.0+cu111.html  
 pip install torch-geometric 
+
+## Run model
+conda activate gcn
+CUDA_VISIBLE_DEVICES=1,2,3 python main.py --gconv=gcn --ngpus=3 --rnn_type=lstm

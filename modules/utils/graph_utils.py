@@ -1,3 +1,7 @@
+import scipy
+import torch
+import torch.nn as nn
+
 def get_dist(location_dt, y):
     from scipy.spatial.distance import cdist
     return cdist(location_dt, y)
