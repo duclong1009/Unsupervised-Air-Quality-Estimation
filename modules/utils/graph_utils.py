@@ -1,10 +1,14 @@
 import scipy
 import torch
 import torch.nn as nn
+import numpy as np
+
 
 def get_dist(location_dt, y):
     from scipy.spatial.distance import cdist
+
     return cdist(location_dt, y)
+
 
 # Build distance graph
 def get_G1(location_dt, n_node=28, time_steps=8):
