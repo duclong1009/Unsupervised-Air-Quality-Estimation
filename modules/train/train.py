@@ -2,26 +2,24 @@ from tqdm.auto import tqdm
 import torch
 
 
-def train_stdgi_fn(stdgi, dataloader, optimizer, criterion, device, gconv="gcn"):
+def train_stdgi_fn(stdgi, dataloader, optimizer, criterion, device):
     epoch_loss = 0
     for data in tqdm(dataloader):
         optimizer.zero_grad()
-        loss = 0
-        x = data.x.to(device).float()
-        edge_idx = data.edge_index.to(device)
-        edge_weight = data.edge_attr.to(device)
-
-        lbl_1 = torch.ones(x.shape[0], 1)
-        lbl_2 = torch.zeros(x.shape[0], 1)
-        lbl = torch.cat((lbl_1, lbl_2), 1).to(device)
-
-        output = stdgi(x, x, edge_idx=edge_idx, edge_attr=edge_weight)
-        loss = criterion(output, lbl)
-        loss.backward()
+        batch_loss = 0
+        for index in range(data["X"].shape[0]):
+            x = data["X"][index].to(device).float()
+            G = data["G"][index].to(device).float()
+            lbl_1 = torch.ones(x.shape[0], 27, 1)
+            lbl_2 = torch.zeros(x.shape[0], 27, 1)
+            lbl = torch.cat((lbl_1, lbl_2), 2).to(device)
+            output = stdgi(x, x, G)
+            batch_loss += criterion(output, lbl)
+        batch_loss = batch_loss / data["X"].shape[0]
+        batch_loss.backward()
         optimizer.step()
-        epoch_loss += loss
+        epoch_loss += batch_loss
     return epoch_loss / len(dataloader)
-
 
 def train_decoder_fn(stdgi, decoder, dataloader, criterion, optimizer, device):
     decoder.train()
@@ -29,19 +27,17 @@ def train_decoder_fn(stdgi, decoder, dataloader, criterion, optimizer, device):
     for data in tqdm(dataloader):
         optimizer.zero_grad()
         batch_loss = 0
-        x = data.x.to(device).float()
-        y = data.y.to(device).float()
-        edge_idx = data.edge_index.to(device)
-        edge_weight = data.edge_attr.to(device)
-        l = data.pos
-        h = stdgi.embedd(x, x, edge_idx=edge_idx, edge_attr=edge_weight)
-        x = x.reshape(-1, 27, 12)
-        h = torch.reshape(h, (-1, 27, 60))
-        l = torch.tensor(l).to(device).float()
-        l = torch.unsqueeze(l, -1)
-        y_pred = decoder(x, h, l)
-        loss = criterion(torch.squeeze(y_pred), y)
-        loss.backward()
+        for index in range(data["X"].shape[0]):
+            y_grt = data["Y"][index].to(device).float()
+            x = data["X"][index].to(device).float()
+            G = data["G"][index].to(device).float()
+            h = stdgi.embedd(x, G)
+            l = data["l"][index].to(device).float()
+            y_prd = decoder(x, h, l)  # 3x1x1
+            batch_loss += criterion(torch.squeeze(y_prd), torch.squeeze(y_grt))
+        batch_loss = batch_loss / data["X"].shape[0]
+        batch_loss.backward()
         optimizer.step()
-        epoch_loss += loss.item()
-    return epoch_loss / len(dataloader)
+        epoch_loss += batch_loss.item()
+    train_loss = epoch_loss / len(dataloader)
+    return train_loss

@@ -15,7 +15,6 @@ parser.add_argument("--seed", type=int, default=99)
 parser.add_argument("--topo_construction", type="str", default="knn")
 parser.add_argument("--top_k", type=int, default=10)
 
-parser.add_argument("--gconv", type=str, default="gcn")
 parser.add_argument("--rnn_type", type=str, default="gru")
 parser.add_argument("--rnn_layer", type=int, default=1)
 parser.add_argument("--optimizer", type=str, default="adam")
