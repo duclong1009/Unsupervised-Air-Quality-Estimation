@@ -13,8 +13,8 @@ import pandas as pd
 from utils.ultilities import config_seed, save_checkpoint, load_model
 from utils.loader import get_columns, preprocess_pipeline
 from utils.loader import AQDataSet
-from models.stdgi import STDGI
-from modules.train.train import train_stdgi_fn
+from src.models.stdgi import STDGI
+from src.modules.train.train import train_stdgi_fn
 import argparse
 
 def parse_args():

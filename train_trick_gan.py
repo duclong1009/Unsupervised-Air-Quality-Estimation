@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 from src.models.stdgi import STDGI
 from src.layers.decoder import Decoder
 from src.modules.train.train import train_decoder_fn
-from src.modules.train.train import train_stdgi_fn
+from src.modules.train.train import train_stdgi_with_trick_fn
 
 
 def parse_args():
@@ -34,7 +34,9 @@ def parse_args():
     parser.add_argument("--lr_stdgi", default=5e-3, type=float)
     parser.add_argument("--num_epochs_stdgi", default=10, type=int)
     parser.add_argument("--output_stdgi", default=60, type=int)
-    parser.add_argument("--checkpoint_stdgi", default="./out/checkpoint/stdgi.pt", type=str)
+    parser.add_argument(
+        "--checkpoint_stdgi", default="./out/checkpoint/stdgi.pt", type=str
+    )
     parser.add_argument("--en_hid1", default=400, type=int)
     parser.add_argument("--en_hid2", default=400, type=int)
     parser.add_argument("--dis_hid", default=6, type=int)
@@ -88,18 +90,23 @@ if __name__ == "__main__":
     l2_coef = 0.0
     mse_loss = nn.MSELoss()
     bce_loss = nn.BCELoss()
-    stdgi_optimizer = torch.optim.Adam(
-        stdgi.parameters(), lr=args.lr_stdgi, weight_decay=l2_coef
+    stdgi_optimizer_e = torch.optim.Adam(
+        stdgi.encoder.parameters(), lr=args.lr_stdgi, weight_decay=l2_coef
     )
-
+    stdgi_optimizer_d =torch.optim.Adam(
+        stdgi.disc.parameters(), lr=args.lr_stdgi, weight_decay=l2_coef
+    )
     early_stopping_stdgi = EarlyStopping(
-        patience=args.patience, verbose=True, delta=args.delta_stdgi,path=args.checkpoint_stdgi
+        patience=args.patience,
+        verbose=True,
+        delta=args.delta_stdgi,
+        path=args.checkpoint_stdgi,
     )
     train_stdgi_loss = []
     for i in range(args.num_epochs_stdgi):
         if not early_stopping_stdgi.early_stop:
-            loss = train_stdgi_fn(
-                stdgi, train_dataloader, stdgi_optimizer, bce_loss, device
+            loss = train_stdgi_with_trick_fn(
+                stdgi, train_dataloader, stdgi_optimizer_e,stdgi_optimizer_d, bce_loss, device
             )
             early_stopping_stdgi(loss, stdgi)
             print("Epochs/Loss: {}/ {}".format(i, loss))

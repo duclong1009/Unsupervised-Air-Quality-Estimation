@@ -10,9 +10,9 @@ import pandas as pd
 from utils.ultilities import config_seed, save_checkpoint, load_model
 from utils.loader import get_columns, preprocess_pipeline, AQDataSet
 from torch.utils.data import DataLoader
-from models.stdgi import STDGI
-from layers.decoder import Decoder
-from modules.train.train import train_decoder_fn
+from src.models.stdgi import STDGI
+from src.layers.decoder import Decoder
+from src.modules.train.train import train_decoder_fn
 
 def parse_args():
     parser = argparse.ArgumentParser()
