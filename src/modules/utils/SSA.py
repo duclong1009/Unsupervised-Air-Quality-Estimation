@@ -3,7 +3,7 @@ import numpy as np
 from numpy import pi
 import matplotlib.pyplot as plt
 import pandas as pd
-
+import random
 
 class SSA(object):
 
@@ -13,26 +13,25 @@ class SSA(object):
         """
         Decomposes the given time series with a singular-spectrum analysis. Assumes the values of the time series are
         recorded at equal intervals.
+
         Parameters
         ----------
         tseries : The original time series, in the form of a Pandas Series, NumPy array or list.
         L : The window length. Must be an integer 2 <= L <= N/2, where N is the length of the time series.
         save_mem : Conserve memory by not retaining the elementary matrices. Recommended for long time series with
             thousands of values. Defaults to True.
+
         Note: Even if an NumPy array or list is used for the initial time series, all time series returned will be
         in the form of a Pandas Series or DataFrame object.
         """
-        x_1 = tseries.apply(pd.to_numeric, errors="coerce")
-        tseries = x_1.clip(lower=0)
+
         # Tedious type-checking for the initial time series
         if not isinstance(tseries, self.__supported_types):
-            raise TypeError(
-                "Unsupported time series object. Try Pandas Series, NumPy array or list."
-            )
+            raise TypeError("Unsupported time series object. Try Pandas Series, NumPy array or list.")
 
         # Checks to save us from ourselves
         self.N = len(tseries)
-        if not 2 <= L <= self.N / 2:
+        if not 2 <= L <= self.N/2:
             raise ValueError("The window length must be in the interval [2, N/2].")
 
         self.L = L
@@ -40,7 +39,7 @@ class SSA(object):
         self.K = self.N - self.L + 1
 
         # Embed the time series in a trajectory matrix
-        self.X = np.array([self.orig_TS.values[i : L + i] for i in range(0, self.K)]).T
+        self.X = np.array([self.orig_TS.values[i:L+i] for i in range(0, self.K)]).T
 
         # Decompose the trajectory matrix
         self.U, self.Sigma, VT = np.linalg.svd(self.X)
@@ -50,36 +49,22 @@ class SSA(object):
 
         if not save_mem:
             # Construct and save all the elementary matrices
-            self.X_elem = np.array(
-                [
-                    self.Sigma[i] * np.outer(self.U[:, i], VT[i, :])
-                    for i in range(self.d)
-                ]
-            )
+            self.X_elem = np.array([ self.Sigma[i]*np.outer(self.U[:,i], VT[i,:]) for i in range(self.d) ])
 
             # Diagonally average the elementary matrices, store them as columns in array.
             for i in range(self.d):
                 X_rev = self.X_elem[i, ::-1]
-                self.TS_comps[:, i] = [
-                    X_rev.diagonal(j).mean()
-                    for j in range(-X_rev.shape[0] + 1, X_rev.shape[1])
-                ]
+                self.TS_comps[:,i] = [X_rev.diagonal(j).mean() for j in range(-X_rev.shape[0]+1, X_rev.shape[1])]
 
             self.V = VT.T
         else:
             # Reconstruct the elementary matrices without storing them
             for i in range(self.d):
-                X_elem = self.Sigma[i] * np.outer(self.U[:, i], VT[i, :])
+                X_elem = self.Sigma[i]*np.outer(self.U[:,i], VT[i,:])
                 X_rev = X_elem[::-1]
-                self.TS_comps[:, i] = [
-                    X_rev.diagonal(j).mean()
-                    for j in range(-X_rev.shape[0] + 1, X_rev.shape[1])
-                ]
+                self.TS_comps[:,i] = [X_rev.diagonal(j).mean() for j in range(-X_rev.shape[0]+1, X_rev.shape[1])]
 
-            self.X_elem = (
-                "Re-run with save_mem=False to retain the elementary matrices."
-            )
-
+            self.X_elem = "Re-run with save_mem=False to retain the elementary matrices."
             # The V array may also be very large under these circumstances, so we won't keep it.
             self.V = "Re-run with save_mem=False to retain the V matrix."
 
@@ -97,22 +82,21 @@ class SSA(object):
 
         # Create list of columns - call them F0, F1, F2, ...
         cols = ["F{}".format(i) for i in range(n)]
-        return pd.DataFrame(
-            self.TS_comps[:, :n], columns=cols, index=self.orig_TS.index
-        )
+        return pd.DataFrame(self.TS_comps[:, :n], columns=cols, index=self.orig_TS.index)
+
 
     def reconstruct(self, indices):
         """
         Reconstructs the time series from its elementary components, using the given indices. Returns a Pandas Series
         object with the reconstructed time series.
+
         Parameters
         ----------
         indices: An integer, list of integers or slice(n,m) object, representing the elementary components to sum.
         """
-        if isinstance(indices, int):
-            indices = [indices]
+        if isinstance(indices, int): indices = [indices]
 
-        ts_vals = self.TS_comps[:, indices].sum(axis=1)
+        ts_vals = self.TS_comps[:,indices].sum(axis=1)
         return pd.Series(ts_vals, index=self.orig_TS.index)
 
     def calc_wcorr(self):
@@ -121,31 +105,21 @@ class SSA(object):
         """
 
         # Calculate the weights
-        w = np.array(
-            list(np.arange(self.L) + 1)
-            + [self.L] * (self.K - self.L - 1)
-            + list(np.arange(self.L) + 1)[::-1]
-        )
+        w = np.array(list(np.arange(self.L)+1) + [self.L]*(self.K-self.L-1) + list(np.arange(self.L)+1)[::-1])
 
         def w_inner(F_i, F_j):
-            return w.dot(F_i * F_j)
+            return w.dot(F_i*F_j)
 
         # Calculated weighted norms, ||F_i||_w, then invert.
-        F_wnorms = np.array(
-            [w_inner(self.TS_comps[:, i], self.TS_comps[:, i]) for i in range(self.d)]
-        )
-        F_wnorms = F_wnorms ** -0.5
+        F_wnorms = np.array([w_inner(self.TS_comps[:,i], self.TS_comps[:,i]) for i in range(self.d)])
+        F_wnorms = F_wnorms**-0.5
 
         # Calculate Wcorr.
         self.Wcorr = np.identity(self.d)
         for i in range(self.d):
-            for j in range(i + 1, self.d):
-                self.Wcorr[i, j] = abs(
-                    w_inner(self.TS_comps[:, i], self.TS_comps[:, j])
-                    * F_wnorms[i]
-                    * F_wnorms[j]
-                )
-                self.Wcorr[j, i] = self.Wcorr[i, j]
+            for j in range(i+1,self.d):
+                self.Wcorr[i,j] = abs(w_inner(self.TS_comps[:,i], self.TS_comps[:,j]) * F_wnorms[i] * F_wnorms[j])
+                self.Wcorr[j,i] = self.Wcorr[i,j]
 
     def plot_wcorr(self, min=None, max=None):
         """
@@ -164,40 +138,59 @@ class SSA(object):
         plt.ylabel(r"$\tilde{F}_j$")
         plt.colorbar(ax.colorbar, fraction=0.045)
         ax.colorbar.set_label("$W_{i,j}$")
-        plt.clim(0, 1)
+        plt.clim(0,1)
 
         # For plotting purposes:
         if max == self.d:
-            max_rnge = self.d - 1
+            max_rnge = self.d-1
         else:
             max_rnge = max
 
-        plt.xlim(min - 0.5, max_rnge + 0.5)
-        plt.ylim(max_rnge + 0.5, min - 0.5)
-
-    def get_lst_sigma(self):
-        return self.Sigma
+        plt.xlim(min-0.5, max_rnge+0.5)
+        plt.ylim(max_rnge+0.5, min-0.5)
 
 
-if __name__ == "__main__":
-    data_file = "/home/aiotlab/projects/hungvv/stdgi/data/PM.csv"
-    # data_out ="../RawData/output.txt"
-    df = pd.read_csv(data_file)
+def reconstruct_total_df(df, len_component, window_length,lst_reconstruct_idx):
+    keys = df.keys()
+    len_df = len(df)
+    reconstructed_df = {}
 
-    Q = df["Q"].to_list()
-    H = df["H"].to_list()
+    num_i = len_df // len_component
 
-    H_ssa_L20 = SSA(H, 20)
-    Q_ssa_L20 = SSA(Q, 20)
+    for key in keys:
+        print(key)
+        lst_key = df[key].tolist()
 
-    lst_sigma = H_ssa_L20.get_lst_sigma()
+        ans = []
+        for i in range(num_i):
+            if i != num_i:
+                component_data = lst_key[i*len_component: (i+1) * len_component]
+            else:
+                component_data = lst_key[i*len_component:]
+            print(str(i) + ': ' + str(len(component_data)))
+            component_deconstructed = SSA(component_data, window_length)
+            lst_key_reconstructed = component_deconstructed.reconstruct(lst_reconstruct_idx)
+            print(lst_key_reconstructed)
+            ans.extend(lst_key_reconstructed)
+        reconstructed_df[key] = ans
+    df_ans = pd.DataFrame(data=reconstructed_df)
+    return df_ans
 
-    print(lst_sigma)
-    # H_ssa = H_ssa_L20.reconstruct([0,1,2,3])
-    # df['water_level_modified'] = H_ssa
+def reconstruct_long_arr(long_lst, len_component, window_length, lst_reconstruct_idx):
+    ans = []
+    num_i = len(long_lst) // len_component + 1
+    for i in range(num_i):
+        if i != num_i:
+            component_data = long_lst[i*len_component: (i+1) * len_component]
+        else:
+            component_data = long_lst[i*len_component:]
+        component_deconstructed = SSA(component_data, window_length)
+        lst_key_reconstructed = component_deconstructed.reconstruct(lst_reconstruct_idx)
+        ans.extend(lst_key_reconstructed)
+    return ans
 
-    # Q_ssa = Q_ssa_L20.reconstruct([0,1,2,3,4,5,6,7,8,9,10,11,12])
-    # df['discharge_modified'] = Q_ssa
 
-    # df_ = df[['time','discharge', 'water_level', 'discharge_modified', 'water_level_modified']]
-    # df_.to_csv('../RawData/Kontum_modified.csv', index=False)
+if __name__=="__main__":
+    for i in range(10):
+        test_lst = [random.uniform(0,1) for i in range(4021)]
+        print(reconstruct_long_arr(test_lst, len_component=200, window_length=20, lst_reconstruct_idx=[i for i in range(0,13)]))

@@ -9,7 +9,7 @@ from sklearn.preprocessing import (
 )
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-
+from sklearn.impute import KNNImputer, SimpleImputer
 from typing import (
     Optional,
     Dict,
@@ -26,6 +26,7 @@ import torch
 import random
 import numpy as np
 import pandas as pd
+from src.modules.SSA import reconstruct_long_arr
 
 # chi su dung data PM truoc
 def get_columns(file_path):
@@ -71,56 +72,43 @@ def to_numeric(x):
     res = x_1.clip(lower=0)
     return res
 
+def clipping(x):
+    max_clip = np.percentile(x, 97)
+    return np.clip(x, a_min=0.1, a_max=max(0.1,max_clip))
 
-def remove_outlier(x):
-    # remove 97th->100th percentile
-    pass
-
-
-def rolling(x):
-    res = []
-    for col in list(x.columns):
-        ans = x[col].rolling(2, min_periods=1)
-        res.append(ans)
-    # pdb.set_trace()
-    ans = np.array(res)
-    return ans  # rolling va lay mean trong 3 timeframe gan nhat
-
-
-from sklearn.impute import KNNImputer, SimpleImputer
-
-
-def preprocess_pipeline(df, threshold=50):
-    sta_ = ["Station_{}".format(i) for i in range(65)]
+def preprocess_pipeline(df):
     lst_cols = list(set(list(df.columns)) - set(["Year", "Month", "Day", "Hour"]))
     type_transformer = FunctionTransformer(to_numeric)
-    outlier_transformer = FunctionTransformer(remove_outlier)
-    rolling_transformer = FunctionTransformer(rolling)
+    clipping_transformer = FunctionTransformer(clipping)
     num_pl = Pipeline(
         steps=[
             ("numeric_transform", type_transformer),
-            # ('roll_transform', rolling_transformer),
             ("imputer", SimpleImputer(strategy="most_frequent")),
+            ("clipping", clipping_transformer)
         ],
     )
     scaler = MinMaxScaler()
     preprocessor = ColumnTransformer(transformers=[("num", num_pl, lst_cols)])
     res = preprocessor.fit_transform(df)
-    res = np.array(res)
+    res = np.transpose(np.array(res))
+
+    for i in range(len(res)):
+        noise  = np.abs(np.divide(np.random.normal(0, 1, len(res[i])), np.array([100 for i in range(len(res[i]))  ] )) )
+        res[i] += noise
+        inp = res[i].tolist()
+        # print( "Input: "+ str(len(inp)))
+        res[i] = reconstruct_long_arr(inp, len_component=8000, window_length=20, lst_reconstruct_idx=[i for i in range(0,13)])
+
     n_ = res.shape[1]
     res = np.reshape(res, (-1, 1))
-    # H_ssa_L20 = SSA(res, 20)
-    # res = H_ssa_L20.get_lst_sigma()
-    # print(res.shape)
-    res = np.where(res <= threshold, res, threshold)
-
-    # res = scaler.fit_transform(res)
+    # res = np.where(res <= threshold, res, threshold)
+    res = scaler.fit_transform(res)
     res = np.reshape(res, (-1, n_))
+
 
     trans_df = pd.DataFrame(res, columns=lst_cols, index=df.index)
     trans_df[["Year", "Month", "Day", "Hour"]] = df[["Year", "Month", "Day", "Hour"]]
     return trans_df, scaler
-
 
 class AQDataset2(Dataset):
     def __init__(
@@ -323,3 +311,13 @@ class AQDataset2(Dataset):
 
     def __len__(self) -> int:
         return self.data_df.shape[0] - (self.input_len)
+
+if __name__=="__main__":
+    data_file = "/home/vuviethung/code/lab/stdgi/data/Station_5.csv"
+    df = pd.read_csv(data_file)
+    df_preprocess = preprocess_pipeline(df)
+    df_ = df_preprocess[['CH4', 'SO2']]
+    df_.to_csv('./preprocess_df.csv', index=False)
+
+    df_rec = reconstruct_total_df(df_, 2000, 20, [i for i in range(10)])
+    df_rec.to_csv('./test.csv')
