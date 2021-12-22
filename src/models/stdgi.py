@@ -48,10 +48,10 @@ class GCN(nn.Module):
         return self.act(out)
 
 
-class Encoder(nn.Module):
+class BaseEncoder(nn.Module):
     # hshape = 64*28*128
     def __init__(self, in_ft, hid_ft1, hid_ft2, out_ft, act="relu"):
-        super(Encoder, self).__init__()
+        super(BaseEncoder, self).__init__()
         self.fc = nn.Linear(in_ft, hid_ft1)
         self.gcn = GCN(hid_ft1, hid_ft2, "relu")
         self.gcn2 = GCN(hid_ft2, out_ft, "relu")
@@ -83,10 +83,58 @@ class Discriminator(nn.Module):
         return self.sigmoid(ret)
 
 
+class BaseSTDGI(nn.Module):
+    def __init__(self, in_ft, out_ft, en_hid1, en_hid2, dis_hid, act_en="relu"):
+        super(BaseSTDGI, self).__init__()
+        self.encoder = BaseEncoder(
+            in_ft=in_ft, hid_ft1=en_hid1, hid_ft2=en_hid2, out_ft=out_ft, act=act_en
+        )
+        self.disc = Discriminator(x_ft=in_ft, h_ft=out_ft, hid_ft=dis_hid)
+
+    def forward(self, x, x_k, adj):
+        # x_ = x(t+k)
+        h = self.encoder(x, adj)
+        x_c = self.corrupt(x_k)
+        # print(f"shape x_c : {x_c.shape}")
+        ret = self.disc(h, x_k, x_c)
+        # print(f"shape h : {ret.shape}")
+        return ret
+
+    def corrupt(self, X):
+        nb_nodes = X.shape[1]
+        idx = np.random.permutation(nb_nodes)
+        shuf_fts = X[:, idx, :]
+        return np.random.uniform(2, 4) * shuf_fts
+
+    def embedd(self, x, adj):
+        h = self.encoder(x, adj)
+        return h
+
+
+class Encoder(nn.Module):
+    # hshape = 64*27*128
+    def __init__(self, in_ft, hid_ft1, hid_ft2, out_ft, act="relu"):
+        super(Encoder, self).__init__()
+        self.fc = nn.Linear(in_ft, hid_ft1)
+        self.rnn = nn.LSTM(hid_ft1,hid_ft1, batch_first=False, num_layers=1)
+        self.gcn = GCN(hid_ft1, hid_ft2, act)
+        self.gcn2 = GCN(hid_ft2, out_ft, act)
+        self.relu = nn.ReLU()
+
+    def forward(self, x, adj):
+        x = self.relu(self.fc(x))
+        x,h = self.rnn(x)
+        x = self.relu(x)
+        x = self.gcn(x, adj)
+        x = self.relu(x)
+        x = self.gcn2(x, adj)
+        return x
+
+
 class STDGI(nn.Module):
     def __init__(self, in_ft, out_ft, en_hid1, en_hid2, dis_hid, act_en="relu"):
         super(STDGI, self).__init__()
-        self.encoder = Encoder(
+        self.encoder = BaseEncoder(
             in_ft=in_ft, hid_ft1=en_hid1, hid_ft2=en_hid2, out_ft=out_ft, act=act_en
         )
         self.disc = Discriminator(x_ft=in_ft, h_ft=out_ft, hid_ft=dis_hid)
@@ -113,7 +161,8 @@ class STDGI(nn.Module):
 
 if __name__ == "__main__":
     # Encoder(12,1,400,200,'relu')
-    stdgi = STDGI(1, 60, 400, 200, 200, "relu")
-    output = stdgi(torch.rand(12, 27, 1), torch.rand(12, 27, 1), torch.rand(12, 27, 27))
+    # stdgi = BaseSTDGI(1, 60, 400, 200, 200, "relu")
+    encoder = Encoder(1,400,200,60,'relu')
+    output = encoder(torch.rand(12, 27, 1), torch.rand(12, 27, 27))
     print(output.shape)
     print("Done")
