@@ -58,6 +58,7 @@ if __name__ == "__main__":
         input_dim=args.input_dim,
         output_dim=1,
     )
+    
     train_dataloader = DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=True
     )
