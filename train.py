@@ -46,7 +46,7 @@ def parse_args():
     parser.add_argument(
         "--checkpoint_decoder", default="./checkpoint/decoder.pt", type=str
     )
-    parser.add_argument("--visualize_dir", default="./output/visualize/", type=str)
+    # parser.add_argument("--visualize_dir", default="./output/visualize/", type=str)
     parser.add_argument("--delta_decoder", default=0, type=float)
     parser.add_argument("--cnn_hid_dim", default=128, type=int)
     parser.add_argument("--fc_hid_dim", default=64, type=int)
