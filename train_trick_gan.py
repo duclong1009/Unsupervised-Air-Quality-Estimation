@@ -11,8 +11,8 @@ import pandas as pd
 from utils.ultilities import config_seed, save_checkpoint, EarlyStopping
 from utils.loader import get_columns, preprocess_pipeline, AQDataSet
 from torch.utils.data import DataLoader
-from src.models.stdgi import STDGI
-from src.layers.decoder import Decoder
+from src.models.stdgi import BaseSTDGI,STDGI
+from src.models.decoder import Decoder
 from src.modules.train.train import train_decoder_fn
 from src.modules.train.train import train_stdgi_with_trick_fn
 
@@ -121,6 +121,7 @@ if __name__ == "__main__":
     optimizer_decoder = torch.optim.Adam(
         decoder.parameters(), lr=args.lr_decoder, weight_decay=l2_coef
     )
+    
     train_decoder_loss = []
     early_stopping_decoder = EarlyStopping(
         patience=args.patience,

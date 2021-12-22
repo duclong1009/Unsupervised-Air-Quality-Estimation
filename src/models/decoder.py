@@ -52,7 +52,7 @@ class Decoder(nn.Module):
         ret = self.relu(ret)
         return ret
 
-# class BaseDecoder(nn.Module):
+# class AttneDecoder(nn.Module):
 #     def __init__(
 #         self, in_ft, out_ft, n_layers_rnn=1, cnn_hid_dim=128, fc_hid_dim=64
 #     ):
