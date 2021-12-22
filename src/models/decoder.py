@@ -95,5 +95,5 @@ class Decoder(nn.Module):
 #         return ret
 
 if __name__ == "__main__":
-    decoder = BaseDecoder(61,1,1,128,64)
+    decoder = Decoder(61,1,1,128,64)
     print(decoder(torch.rand(12,27,1),torch.rand(12,27,60),torch.rand(27,1)).shape)
