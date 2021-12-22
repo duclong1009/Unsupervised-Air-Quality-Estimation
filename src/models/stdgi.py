@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch
 
-
+# from src.modules.utils.ultilities import get_interpolate
 class GCN(nn.Module):
     def __init__(self, infea, outfea, act="relu", bias=True):
         super(GCN, self).__init__()
@@ -154,6 +154,32 @@ class Encoder(nn.Module):
         x = self.gcn2(x, adj)
         return x
 
+def get_interpolate(inp_feat, lst_rev_distance):  # inp: 12, 27, 6
+    inp_feat_ = inp_feat.reshape(inp_feat.shape[0], inp_feat.shape[2], inp_feat.shape[1]) # (seq_len,station,feat) -> (seq_len, feat, station)  =  12,6,27
+    add_feat =  torch.matmul(inp_feat_, lst_rev_distance) # (12, 6, 27 ) * (27,1) -> (12,6,1)
+    add_feat_ = add_feat.reshape(add_feat.shape[0], add_feat.shape[2], add_feat.shape[1]) # 12, 1, 6
+    total_feat = torch.cat((inp_feat, add_feat_), dim=1) # 12, 28, 6
+    return total_feat
+
+class InterpolateEncoder(nn.Module):
+    def __init__(self,in_ft, hid_ft1, hid_ft2, out_ft, act="relu"): #in_ft = 28
+        super(InterpolateEncoder, self).__init__()
+        self.fc = nn.Linear(in_ft, hid_ft1)
+        self.rnn =  nn.LSTM(hid_ft1,hid_ft1, batch_first=False, num_layers=1)
+        self.gcn = GCN(hid_ft1, hid_ft2, act)
+        self.gcn2 = GCN(hid_ft2, out_ft, act)
+        self.relu = nn.ReLU()
+
+    def forward(self, x_inp, adj, l):
+        l_ = l / l.sum()
+        x_inp_ = get_interpolate(x_inp, l_)
+        x,h = self.rnn(x_inp)
+        
+        x = self.relu(x)
+        x = self.gcn(x, adj)
+        x = self.relu(x)
+        x = self.gcn2(x, adj)
+        return x
 
 class STDGI(nn.Module):
     def __init__(self, in_ft, out_ft, en_hid1, en_hid2, dis_hid, act_en="relu"):
@@ -180,8 +206,8 @@ class STDGI(nn.Module):
 
     def embedd(self, x, adj):
         h = self.encoder(x, adj)
-        return h
-
+        return 
+        
 class Attention_STDGI(nn.Module):
     def __init__(self, in_ft, out_ft, en_hid1, en_hid2, dis_hid, act_en="relu"):
         super(Attention_STDGI, self).__init__()

@@ -33,3 +33,10 @@ def visualize(train_loss, val_loss, args):
     plt.legend()
     plt.label("Training vs validation loss")
     plt.savefig(args.visualize_dir)
+
+
+if __name__ == "__main__":
+    lst_data = np.array([1,2,3,4,100])
+    lst_rev_distance = np.array([0.1,0.2,0.3,0.2,0.2])
+
+    print(get_interpolate(lst_data, lst_rev_distance))

@@ -31,7 +31,7 @@ class Decoder(nn.Module):
         """
         x.shape = steps x (n1-1) x num_ft
         h.shape = steps x (n1-1) x latent_dim
-        l.shape = (n1-1) x 1
+        l.shape = (n1-1) x 1 = (27* 1)
         """
 
         batch_size = x.shape[1]
@@ -40,16 +40,16 @@ class Decoder(nn.Module):
         l_ = l_.reshape(1, 27, 1)
         x_ = torch.cat((x, h), dim=2)  # timestep x nodes x hidden feat
         # hid_state = torch.zeros(1, batch_size, self.in_ft).to(DEVICE)
-        output, hid_state = self.rnn(x_)
-        x_ = output[-1]
-        x_ = x_.reshape(1, x_.shape[1], x_.shape[0])
-        ret = self.cnn(x_)
-        ret = torch.bmm(ret, l_)
-        ret = ret.reshape(ret.shape[0], -1)
-        ret = self.linear(ret)
-        ret = self.relu(ret)
-        ret = self.linear2(ret)
-        ret = self.relu(ret)
+        output, hid_state = self.rnn(x_) # hidden_state = (seq_len,60, 27)
+        x_ = output[-1] # (1, 27, 60)
+        x_ = x_.reshape(1, x_.shape[1], x_.shape[0]) # output = (1, 60, 27)
+        ret = self.cnn(x_) # (input_size, hidden_dim) = (60, 128)
+        ret = torch.bmm(ret, l_) # ret= (1, 128, 27) * (1, 27, 1) = (1, 128, 1)
+        ret = ret.reshape(ret.shape[0], -1) # output =  
+        ret = self.linear(ret) # (128, 1)
+        ret = self.relu(ret) # (128,64)
+        ret = self.linear2(ret) # (64,1)
+        ret = self.relu(ret) # (1)
         return ret
 
 # class BaseDecoder(nn.Module):
