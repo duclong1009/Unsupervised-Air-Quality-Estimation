@@ -25,16 +25,23 @@ class AttentionLSTM(nn.Module):
 
     def forward(self, inputs):
         transposed_inputs = torch.transpose(inputs, 0, 1)
+        # for i in range(transposed_inputs.shape[0]):
+        #     print(transposed_inputs[i])
         output, h = self.lstm1(transposed_inputs)
         enc_output, (h_s, c_s) = self.lstm2(output, h)
 
         # Dùng torch zeros để khởi tạo input cũng được. Hoặc dùng time step trước đó là inputs[:, -1, :]
         # embedded = self.embedding(torch.zeros(inputs.size(0), 1, inputs.size(2)))
+        x = transposed_inputs[:, -1:, :]
+        # for i in range(x.shape[0]):
+        #     print(x[i])
         embedded = self.embedding(transposed_inputs[:, -1:, :])
         embedded = self.dropout(embedded)
+        # print(f"Output embedded {embedded}")
         attn_weights = F.softmax(
             self.attn(torch.cat((embedded, h_s[-1].unsqueeze(1)), 2)), dim=2
         )
+        # print(f"attention_weight {attn_weights}")
         attn_applied = torch.bmm(attn_weights, enc_output)
         output = torch.cat((embedded, attn_applied), 2)
         output = self.attn_combine(output)

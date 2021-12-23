@@ -7,7 +7,7 @@ Project for unsupervised prediction in spatial
 
 ## Run model
 ```
-conda activate longnd
+conda activate longvaipe
 ```
 ```
 python train.py

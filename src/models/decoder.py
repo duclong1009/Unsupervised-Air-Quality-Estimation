@@ -104,7 +104,8 @@ class InterpolateAttentionDecoder(nn.Module):
 def get_interpolate(inp_feat, lst_rev_distance):  # inp: 12, 27, 6  lst_rev_distance: 1, 27
     inp_feat_ = inp_feat.reshape(inp_feat.shape[0], inp_feat.shape[2], inp_feat.shape[1]) # (seq_len,station,feat) -> (seq_len, feat, station)  =  12,6,27
     # print(inp_feat_.shape)
-
+    if len(lst_rev_distance.shape) == 1:
+        lst_rev_distance = torch.unsqueeze(lst_rev_distance, 0)
     add_feat =  torch.matmul(inp_feat_, lst_rev_distance.T) # (12, 6, 27 ) * (27,1) -> (12,6,1)
     if len(add_feat.shape) == 2:
         add_feat= torch.unsqueeze(add_feat, 1)
