@@ -100,6 +100,6 @@ if __name__ == "__main__":
     #   print(atten_layer(torch.rand(12,27,1)).shape)
     atten_encoder = Attention_Encoder(1, 60, 120, 200, "relu")
     model = Attention_STDGI(1, 60, 120, 240, 10, "relu")
-    print(
-        model.embedd(torch.rand(12, 27, 1), torch.rand(1, 27, 27)).shape
-    )
+    # print(
+    #     model.embedd(torch.rand(12, 27, 1), torch.rand(1, 27, 27)).shape
+    # )

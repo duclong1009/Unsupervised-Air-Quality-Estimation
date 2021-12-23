@@ -25,7 +25,7 @@ def parse_args():
         default=[i for i in range(28)],
         type=list,
     )
-    parser.add_argument("--input_dim", default=1, type=int)
+    parser.add_argument("--input_dim", default=7, type=int)
     parser.add_argument("--output_dim", default=1, type=int)
     parser.add_argument("--sequence_lenght", default=12, type=int)
     parser.add_argument("--batch_size", default=32, type=int)
@@ -56,23 +56,25 @@ def parse_args():
     parser.add_argument("--n_layers_rnn", default=1, type=int)
     return parser.parse_args()
 
-
+from utils.loader import comb_df
+from utils.loader import get_columns,AQDataSet,location_arr
 if __name__ == "__main__":
     args = parse_args()
     config_seed(args.seed)
     device = torch.device("cpu")
-    file_path = "./data/"
+    file_path = "./data/Beijing/"
     # Preprocess and Load data
-    location = pd.read_csv(file_path + "locations.csv").to_numpy()
-    location = location[:, 1:]
-    res, res_rev, pm_df = get_columns(file_path)
-    trans_df, scaler = preprocess_pipeline(pm_df)
+    res,res_rev,df = get_columns(file_path)
+    comb_arr,b = comb_df(file_path,df,res)
+    location_ = location_arr(file_path,res)
+    # trans_df, scaler = preprocess_pipeline(pm_df)
+    # print(comb_arr.shape)
+    comb_arrr , scaler = preprocess_pipeline(comb_arr)
     train_dataset = AQDataSet(
-        data_df=trans_df[:50],
-        location_df=location,
+        data_df=comb_arr[:50],
+        location_df=location_,
         list_train_station=args.train_station,
         input_dim=args.sequence_lenght,
-        output_dim=args.output_dim,
     )
     train_dataloader = DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=True
