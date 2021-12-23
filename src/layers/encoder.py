@@ -30,6 +30,7 @@ class GCN(nn.Module):
                 m.bias.data.fill_(0.0)
 
     def forward(self, seq, adj, sparse=False):
+        # import pdb; pdb.set_trace()
         seq_fts = self.fc(seq)
         if sparse:
             out = torch.unsqueeze(
@@ -98,6 +99,30 @@ class Attention_Encoder(nn.Module):
         x = self.attn(x)
         # print(f"attn {x}")
         x = self.relu(x.unsqueeze(0))
+        x = self.gcn(x, adj)
+        x = self.relu(x)
+        x = self.gcn2(x, adj)
+        return x
+
+class InterpolateAttentionEncoder(nn.Module):
+    def __init__(self,in_ft, hid_ft1, hid_ft2, out_ft, act="relu"): #in_ft = 28
+        super(InterpolateAttentionEncoder, self).__init__()
+        self.fc = nn.Linear(in_ft, hid_ft1)
+        self.rnn = nn.LSTM(hid_ft1, hid_ft1, batch_first=False, num_layers=1)
+        self.attn = AttentionLSTM(hid_ft1, 120, hid_ft1, 12, 0.1)
+        self.gcn = GCN(hid_ft1, hid_ft2, act)
+        self.gcn2 = GCN(hid_ft2, out_ft, act)
+        self.relu = nn.ReLU()
+
+    def forward(self, x_inp, adj, l):
+        l_ = l / l.sum()
+
+        x = self.relu(self.fc(x_inp))
+        x,h = self.rnn(x)
+        
+        x = self.attn(x)
+        x = self.relu(x.unsqueeze(0))
+
         x = self.gcn(x, adj)
         x = self.relu(x)
         x = self.gcn2(x, adj)

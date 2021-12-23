@@ -2,7 +2,7 @@ from tqdm.auto import tqdm
 import torch
 
 
-def train_stdgi_fn(stdgi, dataloader, optimizer, criterion, device):
+def train_stdgi_fn(stdgi, dataloader, optimizer, criterion, device, interpolate=False):
     epoch_loss = 0
     for data in tqdm(dataloader):
         optimizer.zero_grad()
@@ -10,10 +10,15 @@ def train_stdgi_fn(stdgi, dataloader, optimizer, criterion, device):
         for index in range(data["X"].shape[0]):
             x = data["X"][index].to(device).float()
             G = data["G"][index].to(device).float()
+            l = data["l"][index].to(device).float()
             lbl_1 = torch.ones(x.shape[0], x.shape[1], 1)
             lbl_2 = torch.zeros(x.shape[0], x.shape[1], 1)
             lbl = torch.cat((lbl_1, lbl_2), 2).to(device)
-            output = stdgi(x, x, G)
+            if not interpolate:
+                output = stdgi(x, x, G)
+            else:
+                output = stdgi(x,x, G,l)
+                
             batch_loss += criterion(output, lbl)
         batch_loss = batch_loss / data["X"].shape[0]
         batch_loss.backward()
@@ -85,7 +90,7 @@ def train_stdgi_with_trick_fn(
 
 
 def train_atten_stdgi(
-    stdgi, dataloader, optim_e, optim_d, criterion, device, n_steps=2
+    stdgi, dataloader, optim_e, optim_d, criterion, device, n_steps=2, interpolate=False
 ):
     '''
     Sử dụng train Attention_STDGI model 
@@ -99,8 +104,12 @@ def train_atten_stdgi(
             d_loss = 0
             for index in range(data["X"].shape[0]):
                 x = data["X"][index].to(device).float()
-                G = data["G"][index][0].to(device).float()
-                output = stdgi(x, x, G.unsqueeze(0))
+                G = data["G"][index][0].to(device).float()  
+                l = data["l"][index].to(device).float()
+                if not interpolate:
+                    output = stdgi(x, x, G.unsqueeze(0))
+                else:
+                    output = stdgi(x, x, G.unsqueeze(0), l)
                 lbl_1 = torch.ones(output.shape[0], output.shape[1], 1)
                 lbl_2 = torch.zeros(output.shape[0],output.shape[1], 1)
                 lbl = torch.cat((lbl_1, lbl_2), -1).to(device)
@@ -113,7 +122,11 @@ def train_atten_stdgi(
         for index in range(data["X"].shape[0]):
             x = data["X"][index].to(device).float()
             G = data["G"][index][0].to(device).float()
-            output = stdgi(x, x, G.unsqueeze(0))
+            l = data["l"][index].to(device).float()
+            if not interpolate:
+                output = stdgi(x, x, G.unsqueeze(0))
+            else:
+                output = stdgi(x, x, G.unsqueeze(0), l)
             lbl_1 = torch.ones(output.shape[0], output.shape[1], 1)
             lbl_2 = torch.zeros(output.shape[0], output.shape[1], 1)
             lbl = torch.cat((lbl_1, lbl_2), -1).to(device)
@@ -126,7 +139,7 @@ def train_atten_stdgi(
         epoch_loss += loss
     return epoch_loss / len(dataloader)
 
-def train_atten_decoder_fn(stdgi, decoder, dataloader, criterion, optimizer, device):
+def train_atten_decoder_fn(stdgi, decoder, dataloader, criterion, optimizer, device, interpolate=False):
     decoder.train()
     epoch_loss = 0
     for data in tqdm(dataloader):
@@ -136,9 +149,13 @@ def train_atten_decoder_fn(stdgi, decoder, dataloader, criterion, optimizer, dev
             y_grt = data["Y"][index].to(device).float()
             x = data["X"][index].to(device).float()
             G = data["G"][index][0].to(device).float()
-            h = stdgi.embedd(x, G.unsqueeze(0))
             l = data["l"][index].to(device).float()
-            y_prd = decoder(x[-1].unsqueeze(0), h, l)  # 3x1x1
+            if not interpolate:
+                h = stdgi.embedd(x, G.unsqueeze(0))
+                y_prd = decoder(x[-1].unsqueeze(0), h, l)  # 3x1x1
+            else:
+                h = stdgi.embedd(x, G.unsqueeze(0), l)
+                y_prd = decoder(x[-1].unsqueeze(0), h, l)
             batch_loss += criterion(torch.squeeze(y_prd), torch.squeeze(y_grt))
         batch_loss = batch_loss / data["X"].shape[0]
         batch_loss.backward()

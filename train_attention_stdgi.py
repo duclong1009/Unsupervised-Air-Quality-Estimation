@@ -11,11 +11,10 @@ import pandas as pd
 from utils.ultilities import config_seed, save_checkpoint, EarlyStopping
 from utils.loader import get_columns, preprocess_pipeline, AQDataSet
 from torch.utils.data import DataLoader
-from src.models.stdgi import Attention_STDGI
-from src.models.decoder import Decoder
+from src.models.stdgi import Attention_STDGI, InterpolateAttention_STDGI
+from src.models.decoder import Decoder, InterpolateAttentionDecoder
 from src.modules.train.train import train_atten_decoder_fn
 from src.modules.train.train import train_atten_stdgi
-
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -32,8 +31,8 @@ def parse_args():
     parser.add_argument("--patience", default=3, type=int)
 
     parser.add_argument("--lr_stdgi", default=5e-3, type=float)
-    parser.add_argument("--num_epochs_stdgi", default=10, type=int)
-    parser.add_argument("--output_stdgi", default=60, type=int)
+    parser.add_argument("--num_epochs_stdgi", default=1, type=int)
+    parser.add_argument("--output_stdgi", default=2, type=int)
     parser.add_argument(
         "--checkpoint_stdgi", default="./out/checkpoint/stdgi.pt", type=str
     )
@@ -43,7 +42,7 @@ def parse_args():
     parser.add_argument("--act_fn", default="relu", type=str)
     parser.add_argument("--delta_stdgi", default=0, type=float)
 
-    parser.add_argument("--num_epochs_decoder", default=10, type=int)
+    parser.add_argument("--num_epochs_decoder", default=1, type=int)
     parser.add_argument("--lr_decoder", default=5e-3, type=float)
     parser.add_argument(
         "--checkpoint_decoder", default="./out/checkpoint/decoder.pt", type=str
@@ -54,6 +53,7 @@ def parse_args():
     parser.add_argument("--fc_hid_dim", default=64, type=int)
     parser.add_argument("--rnn_type", default="LSTM", type=str)
     parser.add_argument("--n_layers_rnn", default=1, type=int)
+    parser.add_argument("--interpolate", default=True, type=bool)
     return parser.parse_args()
 from utils.loader import comb_df
 from utils.loader import get_columns,AQDataSet,location_arr
@@ -73,18 +73,29 @@ if __name__ == "__main__":
         location_df=location_,
         list_train_station=args.train_station,
         input_dim=args.sequence_lenght,
+        # output_dim=args.output_dim,
+        interpolate=args.interpolate
     )
     train_dataloader = DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=True
     )
     # Model Stdgi
-    stdgi = Attention_STDGI(
-        in_ft=args.input_dim,
-        out_ft=args.output_stdgi,
-        en_hid1=args.en_hid1,
-        en_hid2=args.en_hid2,
-        dis_hid=args.dis_hid,
-    ).to(device)
+    if not args.interpolate:
+        stdgi = Attention_STDGI(
+            in_ft=args.input_dim,
+            out_ft=args.output_stdgi,
+            en_hid1=args.en_hid1,
+            en_hid2=args.en_hid2,
+            dis_hid=args.dis_hid,
+        ).to(device)
+    else:
+        stdgi = InterpolateAttention_STDGI(
+            in_ft=args.input_dim,
+            out_ft=args.output_stdgi,
+            en_hid1=args.en_hid1,
+            en_hid2=args.en_hid2,
+            dis_hid=args.dis_hid,
+        ).to(device)
     l2_coef = 0.0
     mse_loss = nn.MSELoss()
     bce_loss = nn.BCELoss()
@@ -111,17 +122,29 @@ if __name__ == "__main__":
                 stdgi_optimizer_d,
                 bce_loss,
                 device,
+                interpolate=args.interpolate
             )
             early_stopping_stdgi(loss, stdgi)
             print("Epochs/Loss: {}/ {}".format(i, loss))
-    decoder = Decoder(
-        args.input_dim + args.output_stdgi,
-        args.output_dim,
-        n_layers_rnn=args.n_layers_rnn,
-        rnn=args.rnn_type,
-        cnn_hid_dim=args.cnn_hid_dim,
-        fc_hid_dim=args.fc_hid_dim,
-    ).to(device)
+    if not args.interpolate:
+        decoder = Decoder(
+            args.input_dim + args.output_stdgi,
+            args.output_dim,
+            n_layers_rnn=args.n_layers_rnn,
+            rnn=args.rnn_type,
+            cnn_hid_dim=args.cnn_hid_dim,
+            fc_hid_dim=args.fc_hid_dim,
+        ).to(device)
+    else:
+        decoder = InterpolateAttentionDecoder(
+            args.input_dim + args.output_stdgi,
+            args.output_dim,
+            n_layers_rnn=args.n_layers_rnn,
+            rnn=args.rnn_type,
+            cnn_hid_dim=args.cnn_hid_dim,
+            fc_hid_dim=args.fc_hid_dim,                                   
+        ).to(device)
+
     optimizer_decoder = torch.optim.Adam(
         decoder.parameters(), lr=args.lr_decoder, weight_decay=l2_coef
     )
@@ -135,8 +158,9 @@ if __name__ == "__main__":
     for i in range(args.num_epochs_decoder):
         if not early_stopping_decoder.early_stop:
             epoch_loss = train_atten_decoder_fn(
-                stdgi, decoder, train_dataloader, mse_loss, optimizer_decoder, device
+                stdgi, decoder, train_dataloader, mse_loss, optimizer_decoder, device, interpolate=args.interpolate
             )
             early_stopping_decoder(epoch_loss, decoder)
             print("Epochs/Loss: {}/ {}".format(i, epoch_loss))
+
         train_decoder_loss.append(epoch_loss)
