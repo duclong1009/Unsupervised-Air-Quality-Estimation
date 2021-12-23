@@ -32,7 +32,7 @@ def parse_args():
     parser.add_argument("--patience", default=3, type=int)
 
     parser.add_argument("--lr_stdgi", default=5e-3, type=float)
-    parser.add_argument("--num_epochs_stdgi", default=10, type=int)
+    parser.add_argument("--num_epochs_stdgi", default=1, type=int)
     parser.add_argument("--output_stdgi", default=60, type=int)
     parser.add_argument(
         "--checkpoint_stdgi", default="./out/checkpoint/stdgi.pt", type=str
@@ -43,7 +43,7 @@ def parse_args():
     parser.add_argument("--act_fn", default="relu", type=str)
     parser.add_argument("--delta_stdgi", default=0, type=float)
 
-    parser.add_argument("--num_epochs_decoder", default=10, type=int)
+    parser.add_argument("--num_epochs_decoder", default=1, type=int)
     parser.add_argument("--lr_decoder", default=5e-3, type=float)
     parser.add_argument(
         "--checkpoint_decoder", default="./out/checkpoint/decoder.pt", type=str
