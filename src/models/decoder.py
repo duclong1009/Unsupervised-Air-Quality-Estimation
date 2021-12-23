@@ -35,9 +35,12 @@ class Decoder(nn.Module):
         """
 
         batch_size = x.shape[1]
+        time_st = x.shape[0]
         l_ = l / l.sum()
         l_ = l_.T
-        l_ = l_.reshape(1, 27, 1)
+        a = l_.shape[0]
+        # print(a)
+        l_ = l_.reshape(time_st, batch_size, 1)
         x_ = torch.cat((x, h), dim=2)  # timestep x nodes x hidden feat
         # hid_state = torch.zeros(1, batch_size, self.in_ft).to(DEVICE)
         output, hid_state = self.rnn(x_)

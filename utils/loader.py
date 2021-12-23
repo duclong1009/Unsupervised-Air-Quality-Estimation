@@ -96,20 +96,7 @@ from sklearn.impute import KNNImputer, SimpleImputer
 #     return trans_df, scaler
 
 def preprocess_pipeline(df, threshold=50):
-    # type_transformer = FunctionTransformer(to_numeric)
-    # outlier_transformer = FunctionTransformer(remove_outlier)
-    # rolling_transformer = FunctionTransformer(rolling)
-    # num_pl = Pipeline(
-    #     steps=[
-    #         ("numeric_transform", type_transformer),
-    #         # ('roll_transform', rolling_transformer),
-    #         ("imputer", SimpleImputer(strategy="most_frequent")),
-    #     ],
-    # )
     scaler = MinMaxScaler()
-    # preprocessor = ColumnTransformer(transformers=[("num", num_pl, lst_cols)])
-    # res = preprocessor.fit_transform(df)
-    # res = np.array(res)
     n_ = df.shape[1]
     res = np.reshape(df, (-1, 7))
     res = np.where(res <= threshold, res, threshold)
