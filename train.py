@@ -11,8 +11,8 @@ import pandas as pd
 from utils.ultilities import config_seed, save_checkpoint, EarlyStopping
 from utils.loader import get_columns, preprocess_pipeline, AQDataSet
 from torch.utils.data import DataLoader
-from src.models.stdgi import STDGI
-from src.layers.decoder import Decoder
+from src.models.stdgi import BaseSTDGI
+from src.models.decoder import Decoder
 from src.modules.train.train import train_decoder_fn
 from src.modules.train.train import train_stdgi_fn
 
@@ -76,7 +76,7 @@ if __name__ == "__main__":
         train_dataset, batch_size=args.batch_size, shuffle=True
     )
     # Model Stdgi
-    stdgi = STDGI(
+    stdgi = BaseSTDGI(
         args.input_dim,
         args.output_stdgi,
         args.en_hid1,

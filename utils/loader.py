@@ -129,6 +129,7 @@ class AQDataSet(Dataset):
         test=False,
         transform=None,
         top_k=10,
+        interpolate=False
     ) -> None:
         super().__init__()
         assert not (test and test_station == None), "pha test yeu cau nhap tram test"
@@ -144,7 +145,7 @@ class AQDataSet(Dataset):
         self.data_df = data_df
         self.location = location_df
         self.top_k = top_k
-
+        self.interpolate = interpolate # neu interpolate thi tinh adj_matrix cho ca 28 tram roi swap row cua tram target xuong duoi cung
         # test data
         if self.test:
             test_station = int(test_station)
@@ -154,12 +155,12 @@ class AQDataSet(Dataset):
             )
             lst_cols_input_test = "Station_{}".format(
                 lst_cols_input_test_int
-            )  # trong 28 tram, bo random 1 tram de lam input cho test
+            )  # trong 28 tram, bo random 1 tram 
             self.X_test = data_df.loc[:, lst_cols_input_test].to_numpy()
             self.l_test = self.get_distance_matrix(
                 lst_cols_input_test_int, test_station
             )
-            self.G_test = self.get_adjacency_matrix(lst_cols_input_test_int)
+            self.G_test = self.get_adjacency_matrix(lst_cols_input_test_int, test_station)
             self.Y_test = data_df.loc[:, "Station_{}".format(test_station)].to_numpy()
 
     def get_knn_correlation_adjacency_matrix(self, list_col_train, top_k):
@@ -214,7 +215,8 @@ class AQDataSet(Dataset):
         reverse_matrix = 1 / distance_matrix
         return reverse_matrix / reverse_matrix.sum()
 
-    def get_adjacency_matrix(self, list_col_train_int):
+    def get_adjacency_matrix(self, list_col_train_int, target_station_int=None):
+        
         adjacency_matrix = []
         for j, i in enumerate(list_col_train_int):
             distance_matrix = self.get_distance_matrix(list_col_train_int, i)
@@ -224,8 +226,9 @@ class AQDataSet(Dataset):
         adjacency_matrix = np.array(adjacency_matrix)
         adjacency_matrix = np.expand_dims(adjacency_matrix, 0)
         adjacency_matrix = np.repeat(adjacency_matrix, self.input_len, 0)
-        return adjacency_matrix
 
+        return adjacency_matrix
+        
     def __getitem__(self, index: int):
         if self.test:
             x = self.X_test[index : index + self.input_len, :]
@@ -236,6 +239,7 @@ class AQDataSet(Dataset):
             # chon 1 tram ngau  nhien trong 28 tram lam target tai moi sample
             # import pdb; pdb.set_trace()
             picked_target_station_int = random.choice(self.list_cols_train_int)
+            # print(picked_target_station_int)
             lst_col_train_int = list(
                 set(self.list_cols_train_int) - set([picked_target_station_int])
             )
@@ -248,15 +252,54 @@ class AQDataSet(Dataset):
             y = self.data_df.loc[
                 index + self.input_len + self.output_len - 1, picked_target_station
             ]
-            G = self.get_adjacency_matrix(lst_col_train_int)
+            # import pdb;
+            # pdb.set_trace()
+            if not self.interpolate:
+                G = self.get_adjacency_matrix(lst_col_train_int, picked_target_station_int)
+            else:
+                new_list_col_train_int = lst_col_train_int.copy()
+                new_list_col_train_int.append(picked_target_station_int)
+                G = self.get_adjacency_matrix(new_list_col_train_int, picked_target_station_int)
             l = self.get_reverse_distance_matrix(
                 lst_col_train_int, picked_target_station_int
             )
-            corr_matrix, final_corr_matrix = self.get_knn_correlation_adjacency_matrix(
-                lst_col_train, self.top_k
-            )
+            # corr_matrix, final_corr_matrix = self.get_knn_correlation_adjacency_matrix(
+            #     lst_col_train, self.top_k
+            # )
         sample = {"X": x, "Y": y, "G": np.array(G), "l": np.array(l)}
         return sample
 
     def __len__(self) -> int:
         return self.data_df.shape[0] - (self.input_len)
+
+from utils.ultilities import  config_seed
+from torch.utils.data import DataLoader
+
+
+if __name__ == "__main__":
+    file_path = "../data/"
+    # Preprocess and Load data
+    location = pd.read_csv(file_path + "locations.csv").to_numpy()
+    location = location[:, 1:]
+    res, res_rev, pm_df = get_columns(file_path)
+    trans_df, scaler = preprocess_pipeline(pm_df)
+    train_dataset = AQDataSet(
+        data_df=trans_df[:50],
+        location_df=location,
+        list_train_station=[i for i in range(28)],
+        input_dim=12,
+        output_dim=1,
+        interpolate=True
+    )
+    train_dataloader = DataLoader(
+        train_dataset, batch_size=32, shuffle=True
+    )
+
+    for v in train_dataloader:
+        print('X: ')
+        print(v['X'].size())
+        print('Y: ')
+        print(v['Y'].size())
+        print('G: ')
+        print(v['G'].size())
+        break

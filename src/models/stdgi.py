@@ -2,86 +2,10 @@
 # from layers.discriminator import Discriminator
 import numpy as np
 import torch.nn as nn
-
+import torch.nn.functional as F
 import torch
-import torch.nn as nn
-import torch
-
-# from src.modules.utils.ultilities import get_interpolate
-class GCN(nn.Module):
-    def __init__(self, infea, outfea, act="relu", bias=True):
-        super(GCN, self).__init__()
-        # define cac lop fc -> act
-        self.fc = nn.Linear(infea, outfea, bias=False)
-        self.act = nn.ReLU() if act == "relu" else nn.ReLU()
-
-        # init bias
-        if bias:
-            self.bias = nn.Parameter(torch.FloatTensor(outfea))
-            self.bias.data.fill_(0.0)
-        else:
-            self.register_parameter("bias", None)
-
-        # init weight
-        for m in self.modules():
-            self.weights_init(m)
-
-    def weights_init(self, m):
-        # neu la lop fully connectedd
-        if isinstance(m, nn.Linear):
-            torch.nn.init.xavier_uniform_(m.weight.data)
-
-            if m.bias is not None:
-                m.bias.data.fill_(0.0)
-
-    def forward(self, seq, adj, sparse=False):
-        seq_fts = self.fc(seq)
-        if sparse:
-            out = torch.unsqueeze(
-                torch.bmm(adj, torch.squeeze(adj, torch.squeeze(seq_fts, 0)))
-            )
-        else:
-            out = torch.bmm(adj, seq_fts)
-
-        if self.bias is not None:
-            out += self.bias
-        return self.act(out)
-
-
-class BaseEncoder(nn.Module):
-    # hshape = 64*28*128
-    def __init__(self, in_ft, hid_ft1, hid_ft2, out_ft, act="relu"):
-        super(BaseEncoder, self).__init__()
-        self.fc = nn.Linear(in_ft, hid_ft1)
-        self.gcn = GCN(hid_ft1, hid_ft2, "relu")
-        self.gcn2 = GCN(hid_ft2, out_ft, "relu")
-        self.relu = nn.ReLU()
-
-    def forward(self, x, adj):
-        x = self.fc(x)
-        x = self.relu(x)
-        x = self.gcn(x, adj)
-        x = self.relu(x)
-        x = self.gcn2(x, adj)
-        return x
-
-
-class Discriminator(nn.Module):
-    def __init__(self, h_ft, x_ft, hid_ft):
-        super(Discriminator, self).__init__()
-        self.fc = nn.Bilinear(h_ft, x_ft, out_features=hid_ft)
-        self.linear = nn.Linear(hid_ft, 1)
-        self.sigmoid = nn.Sigmoid()
-        self.relu = nn.ReLU()
-
-    def forward(self, h, x, x_c):
-        ret1 = self.relu(self.fc(h, x))
-        ret1 = self.linear(ret1)
-        ret2 = self.relu(self.fc(h, x_c))
-        ret2 = self.linear(ret2)
-        ret = torch.cat((ret1, ret2), 2)
-        return self.sigmoid(ret)
-
+from src.layers.encoder import BaseEncoder, Attention_Encoder, Encoder
+from src.layers.discriminator import Discriminator
 
 class BaseSTDGI(nn.Module):
     def __init__(self, in_ft, out_ft, en_hid1, en_hid2, dis_hid, act_en="relu"):
@@ -110,77 +34,6 @@ class BaseSTDGI(nn.Module):
         h = self.encoder(x, adj)
         return h
 
-from src.layers.attention import AttentionLSTM
-class Attention_Encoder(nn.Module):
-    def __init__(self, in_ft, hid_ft1, hid_ft2, out_ft, act="relu"):
-        super(Attention_Encoder, self).__init__()
-        self.fc = nn.Linear(in_ft, hid_ft1)
-        self.rnn = nn.LSTM(hid_ft1,hid_ft1, batch_first=False, num_layers=1)
-        self.attn = AttentionLSTM(hid_ft1,120,hid_ft1,12,0.1)
-    
-        self.gcn = GCN(hid_ft1, hid_ft2, act)
-        self.gcn2 = GCN(hid_ft2, out_ft, act)
-        self.relu = nn.ReLU()
-
-    def forward(self, x, adj):
-        x = self.relu(self.fc(x))
-        x,h = self.rnn(x)
-        x = self.attn(x)
-        print(x.shape)
-        x = self.relu(x.unsqueeze(0))
-        x = self.gcn(x, adj)
-        x = self.relu(x)
-        x = self.gcn2(x, adj)
-        return x
-
-
-class Encoder(nn.Module):
-    # hshape = 64*27*128
-    def __init__(self, in_ft, hid_ft1, hid_ft2, out_ft, act="relu"):
-        super(Encoder, self).__init__()
-        self.fc = nn.Linear(in_ft, hid_ft1)
-        self.rnn = nn.LSTM(hid_ft1,hid_ft1, batch_first=False, num_layers=1)
-        self.gcn = GCN(hid_ft1, hid_ft2, act)
-        self.gcn2 = GCN(hid_ft2, out_ft, act)
-        self.relu = nn.ReLU()
-
-    def forward(self, x, adj):
-        x = self.relu(self.fc(x))
-        x,h = self.rnn(x)
-        
-        x = self.relu(x)
-        x = self.gcn(x, adj)
-        x = self.relu(x)
-        x = self.gcn2(x, adj)
-        return x
-
-def get_interpolate(inp_feat, lst_rev_distance):  # inp: 12, 27, 6
-    inp_feat_ = inp_feat.reshape(inp_feat.shape[0], inp_feat.shape[2], inp_feat.shape[1]) # (seq_len,station,feat) -> (seq_len, feat, station)  =  12,6,27
-    add_feat =  torch.matmul(inp_feat_, lst_rev_distance) # (12, 6, 27 ) * (27,1) -> (12,6,1)
-    add_feat_ = add_feat.reshape(add_feat.shape[0], add_feat.shape[2], add_feat.shape[1]) # 12, 1, 6
-    total_feat = torch.cat((inp_feat, add_feat_), dim=1) # 12, 28, 6
-    return total_feat
-
-class InterpolateEncoder(nn.Module):
-    def __init__(self,in_ft, hid_ft1, hid_ft2, out_ft, act="relu"): #in_ft = 28
-        super(InterpolateEncoder, self).__init__()
-        self.fc = nn.Linear(in_ft, hid_ft1)
-        self.rnn =  nn.LSTM(hid_ft1,hid_ft1, batch_first=False, num_layers=1)
-        self.gcn = GCN(hid_ft1, hid_ft2, act)
-        self.gcn2 = GCN(hid_ft2, out_ft, act)
-        self.relu = nn.ReLU()
-
-    def forward(self, x_inp, adj, l):
-        l_ = l / l.sum()
-        x_inp_ = get_interpolate(x_inp, l_)
-        x,h = self.rnn(x_inp)
-        
-        x = self.relu(x)
-        x = self.gcn(x, adj)
-        x = self.relu(x)
-        x = self.gcn2(x, adj)
-        return x
-
 class STDGI(nn.Module):
     def __init__(self, in_ft, out_ft, en_hid1, en_hid2, dis_hid, act_en="relu"):
         super(STDGI, self).__init__()
@@ -206,8 +59,9 @@ class STDGI(nn.Module):
 
     def embedd(self, x, adj):
         h = self.encoder(x, adj)
-        return 
-        
+        return h
+
+
 class Attention_STDGI(nn.Module):
     def __init__(self, in_ft, out_ft, en_hid1, en_hid2, dis_hid, act_en="relu"):
         super(Attention_STDGI, self).__init__()
@@ -221,7 +75,7 @@ class Attention_STDGI(nn.Module):
         h = self.encoder(x, adj)
         x_c = self.corrupt(x_k)
         # print(f"shape x_c : {x_c.shape}")
-        ret = self.disc(h, x_k, x_c)
+        ret = self.disc(h, x_k[-1].unsqueeze(0), x_c[-1].unsqueeze(0))
         # print(f"shape h : {ret.shape}")
         return ret
 
@@ -236,8 +90,59 @@ class Attention_STDGI(nn.Module):
         return h
 
 
+from src.layers.encoder import InterpolateAttentionEncoder
+
+class InterpolateAttention_STDGI(nn.Module):
+    def __init__(self, in_ft, out_ft, en_hid1, en_hid2, dis_hid, act_en="relu"):
+        super(InterpolateAttention_STDGI, self).__init__()
+        self.encoder = InterpolateAttentionEncoder(
+            in_ft=in_ft, hid_ft1=en_hid1, hid_ft2=en_hid2, out_ft=out_ft, act=act_en
+        )
+        self.disc = Discriminator(x_ft=in_ft, h_ft=out_ft, hid_ft=dis_hid)
+
+    def forward(self, x, x_k, adj, l):
+        # x_ = x(t+k)
+        x_ = get_interpolate(x, l)
+        h = self.encoder(x_, adj, l)
+
+        x_k_ = get_interpolate(x_k, l)
+        x_c = self.corrupt(x_k_)
+
+        # print(f"shape x_c : {x_c.shape}")
+        ret = self.disc(h, x_k_[-1].unsqueeze(0), x_c[-1].unsqueeze(0))
+        # print(f"shape h : {ret.shape}")
+        return ret
+
+    def corrupt(self, X):
+        nb_nodes = X.shape[1]
+        idx = np.random.permutation(nb_nodes)
+        shuf_fts = X[:, idx, :]
+        return np.random.uniform(2, 4) * shuf_fts
+
+    def embedd(self, x, adj, l):
+        x_ = get_interpolate(x, l)
+        h = self.encoder(x_, adj, l)
+        return h
+
+def get_interpolate(inp_feat, lst_rev_distance):  # inp: 12, 27, 1  lst_rev_distance: 1, 27
+    inp_feat_ = inp_feat.reshape(inp_feat.shape[0], inp_feat.shape[2], inp_feat.shape[1]) # (seq_len,station,feat) -> (seq_len, feat, station)  =  12,6,27
+    # print(inp_feat_.shape)
+    add_feat =  torch.matmul(inp_feat_, lst_rev_distance.T) # (12, 6, 27 ) * (27,1) -> (12,6,1)
+    if len(add_feat.shape) == 2:
+        add_feat= torch.unsqueeze(add_feat, 1)
+    # import pdb; pdb.set_trace()
+    
+    add_feat_ = add_feat.reshape(add_feat.shape[0], add_feat.shape[2], add_feat.shape[1]) # 12, 1, 6
+    total_feat = torch.cat((inp_feat, add_feat_), dim=1) # 12, 28, 6
+    # print(total_feat.shape)
+    return total_feat
+
+
 if __name__ == "__main__":
-#   atten_layer = AttentionLSTM(1,60,120,12,0.1)
-#   print(atten_layer(torch.rand(12,27,1)).shape)
-  atten_encoder = Attention_Encoder(1,60,120,200,'relu')
-  print(atten_encoder(torch.rand(12,27,1),torch.rand(27,27)).shape)
+    # atten_layer = AttentionLSTM(1,60,120,12,0.1)
+    # print(atten_layer(torch.rand(12,27,1)).shape)
+    atten_encoder = InterpolateAttentionEncoder(1, 60, 120, 200, "relu")
+    model = Attention_STDGI(1, 60, 120, 240, 10, "relu")
+    print(
+        model.embedd(torch.rand(12, 27, 1), torch.rand(1, 28, 28)).shape
+    )
