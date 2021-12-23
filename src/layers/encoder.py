@@ -89,9 +89,14 @@ class Attention_Encoder(nn.Module):
         self.relu = nn.ReLU()
 
     def forward(self, x, adj):
+        # print(x)
+        # print(adj)
         x = self.relu(self.fc(x))
+        # print(f"relu fc {x}")
         x, h = self.rnn(x)
+        # print(f"Rnn {x}")
         x = self.attn(x)
+        # print(f"attn {x}")
         x = self.relu(x.unsqueeze(0))
         x = self.gcn(x, adj)
         x = self.relu(x)
