@@ -126,4 +126,4 @@ class InterpolateAttentionEncoder(nn.Module):
         x = self.gcn(x, adj)
         x = self.relu(x)
         x = self.gcn2(x, adj)
-        return x
+        return x, h
