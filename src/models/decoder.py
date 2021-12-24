@@ -142,13 +142,11 @@ class InterpolateAttentionDecoder(nn.Module):
         self.linear2 = nn.Linear(fc_hid_dim, out_ft)
 
         self.relu = nn.ReLU()
-
+        self.tanh = nn.Tanh()
         self.embedding = nn.Linear(in_ft-stdgi_out_dim, in_ft-stdgi_out_dim) # (28,1)
         self.dropout = nn.Dropout(drop_prob)
         self.linear3 = nn.Linear(en_hid1 * 2, in_ft - stdgi_out_dim ) # linear of catted encoder hidden [h,c] 
         self.linear4 = nn.Linear(num_stat, 1)
-
-        self.attn = nn.Linear((in_ft-stdgi_out_dim) * 2, in_ft-stdgi_out_dim)
 
     def forward(self, x, h, enc_hidd,l):
         """
@@ -163,24 +161,24 @@ class InterpolateAttentionDecoder(nn.Module):
         embedded = self.embedding(x_inter ) # (1, 20,6) -> (1, 20, 6)
         embedded = self.dropout(embedded)  
 
+        # import pdb; pdb.set_trace()
+
         encoder_hidden = enc_hidd[0] # h
         encoder_context = enc_hidd[1] # c
 
         cated_encoder = torch.cat((encoder_hidden, encoder_context), 2) #(1,20,200) + (1,20,200) -> (1, 20,400)
         cated_encoder= self.linear3(cated_encoder) # (1, 20, 400) -> (1, 20, 6)
 
-        cated_encoder_embedded = torch.cat((cated_encoder, embedded) ,2) # (1, 20, 6) * 2 -> (1, 20, 12)
-        cated_encoder_embedded = cated_encoder_embedded.reshape(cated_encoder_embedded.shape[0], cated_encoder_embedded.shape[2], cated_encoder_embedded.shape[1]) # (1, 12, 20)
-        cated_encoder_embedded = self.linear4(cated_encoder_embedded) # (1, 12, 1)
-        cated_encoder_embedded = torch.squeeze(cated_encoder_embedded, 2) # (1, 12)
-        # import pdb; pdb.set_trace()
-        attn_weights = F.softmax(self.attn(cated_encoder_embedded), dim=1) # embeded (1,12) => attn (1,6) 
+        cated_encoder_embedded = self.tanh(torch.squeeze(torch.add(cated_encoder, embedded), 0)) # (1, 20, 6) + (1, 20, 6) -> (20,6)
+        cated_encoder_embedded  = self.linear4(cated_encoder_embedded.T) # (6,20) * (20,1) = (6,1)
+
+        attn_weights = F.softmax(cated_encoder_embedded.T, dim=1) # (6,1)-> (1,6)
         dim_2 = attn_weights.shape[1]
-        attn_weights = attn_weights.unsqueeze(1).repeat(1, dim_2, 1)
+        attn_weights = attn_weights.unsqueeze(1).repeat(1, dim_2, 1) # (1,6) -> (1, 6, 6)
         attn_applied = torch.bmm(x_inter, attn_weights) # x_inter=(1, 20, 6) attn_weights=(1, 6,6) => (1, 20, 6)
 
         x_ = torch.cat((attn_applied, h), dim=2)  # timestep x nodes x hidden feat (1,20,6) (1,20,2)
-        
+            
         output, hid_state = self.rnn(x_) # output = (seq_len, 28, 60)
 
         x_ = output[-1] # (1, 28, 60)
