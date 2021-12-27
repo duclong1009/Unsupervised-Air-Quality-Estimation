@@ -125,6 +125,7 @@ if __name__ == "__main__":
     optimizer_decoder = torch.optim.Adam(
         decoder.parameters(), lr=args.lr_decoder, weight_decay=l2_coef
     )
+    
     train_decoder_loss = []
     early_stopping_decoder = EarlyStopping(
         patience=args.patience,
@@ -132,6 +133,7 @@ if __name__ == "__main__":
         delta=args.delta_decoder,
         path=args.checkpoint_decoder,
     )
+
     for i in range(args.num_epochs_decoder):
         if not early_stopping_decoder.early_stop:
             epoch_loss = train_atten_decoder_fn(
