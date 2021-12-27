@@ -138,6 +138,24 @@ def location_arr(file_path, res):
         loc = location_df[location_df['location'] == res[i]].to_numpy()[0,1:]
         list_location.append([loc[1],loc[0]])
     return np.array(list_location)
+
+def get_data_array(file_path):
+    location_df = pd.read_csv(file_path + "location.csv")
+    station = location_df['location'].values
+    location = location_df.values[:,1:]
+    location_ = location[:,[1,0]]
+    
+    list_arr = []
+    for i in station:
+        df = pd.read_csv(file_path  + f"{i}.csv")
+        df = df.fillna(5)
+        df = df.fillna(method='ffill')
+        arr = df.values[:,1:]
+        arr = np.expand_dims(arr,axis=1)
+        list_arr.append(arr)
+    list_arr = np.concatenate(list_arr,axis=1)
+    return list_arr,location_,station
+
 class AQDataSet(Dataset):
     def __init__(
         self,
@@ -148,8 +166,7 @@ class AQDataSet(Dataset):
         test_station=None,
         test=False,
         transform=None,
-        top_k=10,
-    ) -> None:
+    ):
         super().__init__()
         assert not (test and test_station == None), "pha test yeu cau nhap tram test"
         assert not (
@@ -162,7 +179,6 @@ class AQDataSet(Dataset):
         self.test = test
         self.data_df = data_df
         self.location = location_df
-        self.top_k = top_k
         # test data
         if self.test:
             test_station = int(test_station)
@@ -173,12 +189,12 @@ class AQDataSet(Dataset):
             lst_cols_input_test = "Station_{}".format(
                 lst_cols_input_test_int
             )  # trong 28 tram, bo random 1 tram de lam input cho test
-            self.X_test = data_df[:, lst_cols_input_test]
+            self.X_test = data_df[:, lst_cols_input_test,:]
             self.l_test = self.get_distance_matrix(
                 lst_cols_input_test_int, test_station
             )
             self.G_test = self.get_adjacency_matrix(lst_cols_input_test_int)
-            self.Y_test = data_df[:,test_station]
+            self.Y_test = data_df[:,test_station,:]
 
 
     def get_distance(self, coords_1, coords_2):
@@ -216,7 +232,7 @@ class AQDataSet(Dataset):
     def __getitem__(self, index: int):
         if self.test:
             x = self.X_test[index : index + self.input_len, :]
-            y = self.Y_test[index + self.input_len + self.output_len - 1]
+            y = self.Y_test[index + self.input_len + self.output_len - 1,2]
             G = self.G_test
             l = self.l_test
         else:
@@ -226,20 +242,18 @@ class AQDataSet(Dataset):
             lst_col_train_int = list(
                 set(self.list_cols_train_int) - set([picked_target_station_int])
             )
-            # picked_target_station = "Station_{}".format(picked_target_station_int)
-            # lst_col_train = ["Station_{}".format(i) for i in lst_col_train_int]
             x = self.data_df[
                 index : index + self.input_len , lst_col_train_int,:
             ]
             # x = np.expand_dims(x, -1)
             y = self.data_df[
-                index + self.input_len - 1, picked_target_station_int,0
+                index + self.input_len - 1, picked_target_station_int,2
             ]
             G = self.get_adjacency_matrix(lst_col_train_int)
             l = self.get_reverse_distance_matrix(
                 lst_col_train_int, picked_target_station_int
             )
-        sample = {"X": x, "Y": y, "G": np.array(G), "l": np.array(l)}
+        sample = {"X": x, "Y": np.array(y), "G": np.array(G), "l": np.array(l)}
         return sample
 
     def __len__(self) -> int:

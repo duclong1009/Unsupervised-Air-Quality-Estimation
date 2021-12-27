@@ -9,7 +9,7 @@ from tqdm.notebook import tqdm
 import matplotlib.pyplot as plt
 import pandas as pd
 from utils.ultilities import config_seed, save_checkpoint, EarlyStopping
-from utils.loader import get_columns, preprocess_pipeline, AQDataSet
+from utils.loader import get_columns, get_data_array, preprocess_pipeline, AQDataSet
 from torch.utils.data import DataLoader
 from src.models.stdgi import Attention_STDGI
 from src.models.decoder import Decoder
@@ -25,7 +25,7 @@ def parse_args():
         default=[i for i in range(20)],
         type=list,
     )
-    parser.add_argument("--input_dim", default=7, type=int)
+    parser.add_argument("--input_dim", default=14, type=int)
     parser.add_argument("--output_dim", default=1, type=int)
     parser.add_argument("--sequence_lenght", default=12, type=int)
     parser.add_argument("--batch_size", default=32, type=int)
@@ -62,21 +62,26 @@ if __name__ == "__main__":
     args = parse_args()
     config_seed(args.seed)
     device = torch.device("cpu")
-    file_path = "./data/Beijing/"
-    # Preprocess and Load data
-    res,res_rev,df = get_columns(file_path)
-    comb_arr,b = comb_df(file_path,df,res)
-    location_ = location_arr(file_path,res)
-    # trans_df, scaler = preprocess_pipeline(pm_df)
+    file_path = "./data/Beijing2/"
+    comb_arr,location_, station = get_data_array(file_path)
+    # trans_df, scaler = preprocess_pipeline(comb_arr)
     train_dataset = AQDataSet(
         data_df=comb_arr[:50],
         location_df=location_,
         list_train_station=args.train_station,
         input_dim=args.sequence_lenght,
     )
+    for i in train_dataset:
+        print(type(i["X"]))
+        print(type(i["Y"]))
+        print(type(i["G"]))
+        print(type(i["l"]))
+        break
+    
     train_dataloader = DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=True
     )
+    
     # Model Stdgi
     stdgi = Attention_STDGI(
         in_ft=args.input_dim,
@@ -85,6 +90,8 @@ if __name__ == "__main__":
         en_hid2=args.en_hid2,
         dis_hid=args.dis_hid,
     ).to(device)
+
+
     l2_coef = 0.0
     mse_loss = nn.MSELoss()
     bce_loss = nn.BCELoss()
