@@ -8,6 +8,7 @@ from tqdm.notebook import tqdm
 # from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 import pandas as pd
+from modules.train.test import cal_acc, test_atten_decoder_fn
 from utils.ultilities import config_seed, save_checkpoint, EarlyStopping
 from utils.loader import  get_data_array, preprocess_pipeline, AQDataSet
 from torch.utils.data import DataLoader
@@ -26,7 +27,7 @@ def parse_args():
     )
     parser.add_argument("--input_dim", default=16, type=int)
     parser.add_argument("--output_dim", default=1, type=int)
-    parser.add_argument("--sequence_lenght", default=12, type=int)
+    parser.add_argument("--sequence_length", default=12, type=int)
     parser.add_argument("--batch_size", default=32, type=int)
     parser.add_argument("--patience", default=10, type=int)
 
@@ -36,6 +37,7 @@ def parse_args():
     parser.add_argument(
         "--checkpoint_stdgi", default="./out/checkpoint/stdgi.pt", type=str
     )
+    parser.add_argument("--output_path",default="./out/" , type=str)
     parser.add_argument("--en_hid1", default=200, type=int)
     parser.add_argument("--en_hid2", default=400, type=int)
     parser.add_argument("--dis_hid", default=6, type=int)
@@ -71,7 +73,7 @@ if __name__ == "__main__":
         data_df=comb_arr[:50],
         location_df=location_,
         list_train_station=[i for  i in range(20)],
-        input_dim=args.sequence_lenght,
+        input_dim=args.sequence_length,
         # output_dim=args.output_dim,
         interpolate=args.interpolate
     )
@@ -180,4 +182,25 @@ if __name__ == "__main__":
         train_decoder_loss.append(epoch_loss)
 
     #test
-    test_loss, list_
+    list_acc = []
+    for test_station in args.test_station:
+        test_dataset = AQDataSet(
+            data_df=comb_arr[:50],
+            location_df=location_,
+            list_train_station=[i for  i in range(20)],
+            test_station=test_station,
+            test = True,
+            input_dim=args.sequence_length,
+            # output_dim=args.output_dim,
+            interpolate=args.interpolate
+        )
+        test_dataloader = DataLoader(
+            test_dataset, batch_size=args.batch_size, shuffle=True
+        )
+        
+        list_prd,list_grt = test_atten_decoder_fn(stdgi,decoder,test_dataloader,device, args.interpolate)
+        mae,mse,corr = cal_acc(list_prd,list_grt)
+        list_acc.append([test_station,mae,mse,corr])
+        print("Test Accuracy: {}".format(mae,mse,corr))
+    df = pd.DataFrame(np.array(list_acc),columns=['STATION','MAE','MSE','CORR'])
+    df.to_csv(args.output_path + "test/acc.csv",index=False)
