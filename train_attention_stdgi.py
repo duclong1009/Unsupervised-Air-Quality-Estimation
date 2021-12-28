@@ -64,7 +64,6 @@ if __name__ == "__main__":
     device = torch.device("cpu")
     file_path = "./data/Beijing2/"
     comb_arr,location_, station = get_data_array(file_path)
-    print(comb_arr)
     # trans_df, scaler = preprocess_pipeline(comb_arr)
     train_dataset = AQDataSet(
         data_df=comb_arr[:50],
@@ -76,7 +75,6 @@ if __name__ == "__main__":
     train_dataloader = DataLoader(
         train_dataset, batch_size=32, shuffle=True
     )
-
     # Model Stdgi
     stdgi = Attention_STDGI(
         in_ft=args.input_dim,
