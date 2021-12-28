@@ -9,7 +9,7 @@ from tqdm.notebook import tqdm
 import matplotlib.pyplot as plt
 import pandas as pd
 from utils.ultilities import config_seed, save_checkpoint, EarlyStopping
-from utils.loader import get_columns, get_data_array, preprocess_pipeline, AQDataSet
+from utils.loader import  get_data_array, preprocess_pipeline, AQDataSet
 from torch.utils.data import DataLoader
 from src.models.stdgi import Attention_STDGI
 from src.models.decoder import Decoder
@@ -64,24 +64,19 @@ if __name__ == "__main__":
     device = torch.device("cpu")
     file_path = "./data/Beijing2/"
     comb_arr,location_, station = get_data_array(file_path)
+    print(comb_arr)
     # trans_df, scaler = preprocess_pipeline(comb_arr)
     train_dataset = AQDataSet(
         data_df=comb_arr[:50],
         location_df=location_,
-        list_train_station=args.train_station,
+        list_train_station=[i for  i in range(20)],
         input_dim=args.sequence_lenght,
     )
-    for i in train_dataset:
-        print(type(i["X"]))
-        print(type(i["Y"]))
-        print(type(i["G"]))
-        print(type(i["l"]))
-        break
-    
+
     train_dataloader = DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=True
+        train_dataset, batch_size=32, shuffle=True
     )
-    
+
     # Model Stdgi
     stdgi = Attention_STDGI(
         in_ft=args.input_dim,

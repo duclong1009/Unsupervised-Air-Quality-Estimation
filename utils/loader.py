@@ -149,13 +149,18 @@ def get_data_array(file_path):
     for i in station:
         df = pd.read_csv(file_path  + f"{i}.csv")
         df = df.fillna(5)
-        df = df.fillna(method='ffill')
-        arr = df.values[:,1:]
+        # df = df.fillna(method='ffill')
+        arr = df.iloc[:,1:].astype(float).values
+        print(arr.shape)
         arr = np.expand_dims(arr,axis=1)
         list_arr.append(arr)
     list_arr = np.concatenate(list_arr,axis=1)
+    
+    # for i in range(14):
+        # print(type(list_arr[0,0,i]))
     return list_arr,location_,station
 
+from torchvision import transforms
 class AQDataSet(Dataset):
     def __init__(
         self,
@@ -166,7 +171,8 @@ class AQDataSet(Dataset):
         test_station=None,
         test=False,
         transform=None,
-    ):
+        top_k=10,
+    ) -> None:
         super().__init__()
         assert not (test and test_station == None), "pha test yeu cau nhap tram test"
         assert not (
@@ -179,6 +185,10 @@ class AQDataSet(Dataset):
         self.test = test
         self.data_df = data_df
         self.location = location_df
+        self.top_k = top_k
+        self.transform = transforms.Compose([
+            transforms.ToTensor()
+        ])
         # test data
         if self.test:
             test_station = int(test_station)
@@ -189,17 +199,16 @@ class AQDataSet(Dataset):
             lst_cols_input_test = "Station_{}".format(
                 lst_cols_input_test_int
             )  # trong 28 tram, bo random 1 tram de lam input cho test
-            self.X_test = data_df[:, lst_cols_input_test,:]
+            self.X_test = data_df[:, lst_cols_input_test]
             self.l_test = self.get_distance_matrix(
                 lst_cols_input_test_int, test_station
             )
             self.G_test = self.get_adjacency_matrix(lst_cols_input_test_int)
-            self.Y_test = data_df[:,test_station,:]
+            self.Y_test = data_df[:,test_station]
 
 
     def get_distance(self, coords_1, coords_2):
         import geopy.distance
-
         return geopy.distance.geodesic(coords_1, coords_2).km
 
     def get_distance_matrix(self, list_col_train_int, target_station):
@@ -253,8 +262,8 @@ class AQDataSet(Dataset):
             l = self.get_reverse_distance_matrix(
                 lst_col_train_int, picked_target_station_int
             )
-        sample = {"X": x, "Y": np.array(y), "G": np.array(G), "l": np.array(l)}
+        sample = {"X": x,"Y":np.array([y]), "G": np.array(G), "l":np.array(l)}
         return sample
 
     def __len__(self) -> int:
-        return self.data_df.shape[0] - (self.input_len)
+        return self.data_df.shape[0] - (self.input_len) -1 
