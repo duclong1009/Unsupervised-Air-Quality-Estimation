@@ -24,7 +24,7 @@ def parse_args():
         default=[i for i in range(20)],
         type=list,
     )
-    parser.add_argument("--input_dim", default=14, type=int)
+    parser.add_argument("--input_dim", default=16, type=int)
     parser.add_argument("--output_dim", default=1, type=int)
     parser.add_argument("--sequence_lenght", default=12, type=int)
     parser.add_argument("--batch_size", default=32, type=int)
@@ -178,3 +178,6 @@ if __name__ == "__main__":
             early_stopping_decoder(epoch_loss, decoder)
             print("Epochs/Loss: {}/ {}".format(i, epoch_loss))
         train_decoder_loss.append(epoch_loss)
+
+    #test
+    test_loss, list_

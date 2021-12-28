@@ -139,6 +139,8 @@ def location_arr(file_path, res):
     return np.array(list_location)
 
 def get_data_array(file_path):
+    columns = ['PM2.5','Hour','Month', 'AQI', 'PM10',  'CO', 'NO2', 'O3', 'SO2', 'prec',
+       'lrad', 'shum', 'pres', 'temp', 'wind', 'srad']
     location_df = pd.read_csv(file_path + "location.csv")
     station = location_df['location'].values
     location = location_df.values[:,1:]
@@ -146,13 +148,15 @@ def get_data_array(file_path):
     
     list_arr = []
     for i in station:
-        df = pd.read_csv(file_path  + f"{i}.csv")
+        df = pd.read_csv(file_path  + f"{i}.csv")[columns]
+        # print(df.head())
         df = df.fillna(method='ffill')
         df = df.fillna(10)
-        arr = df.iloc[:,1:].astype(float).values
+        arr = df.astype(float).values
         arr = np.expand_dims(arr,axis=1)
         list_arr.append(arr)
     list_arr = np.concatenate(list_arr,axis=1)
+    # print(list_arr.shape)
     return list_arr,location_,station
 
 from torchvision import transforms
@@ -232,7 +236,7 @@ class AQDataSet(Dataset):
     def __getitem__(self, index: int):
         if self.test:
             x = self.X_test[index : index + self.input_len, :]
-            y = self.Y_test[index + self.input_len + self.output_len - 1,2]
+            y = self.Y_test[index + self.input_len + self.output_len - 1,0]
             G = self.G_test
             l = self.l_test
         else:
@@ -248,7 +252,7 @@ class AQDataSet(Dataset):
             ]
             # x = np.expand_dims(x, -1)
             y = self.data_df[
-                index + self.input_len - 1, picked_target_station_int,2
+                index + self.input_len - 1, picked_target_station_int,0
             ]
             # import pdb;
             # pdb.set_trace()
