@@ -61,7 +61,9 @@ from utils.loader import get_columns,AQDataSet,location_arr
 if __name__ == "__main__":
     args = parse_args()
     config_seed(args.seed)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")
+
     file_path = "./data/Beijing/"
     # Preprocess and Load data
     res,res_rev,df = get_columns(file_path)
