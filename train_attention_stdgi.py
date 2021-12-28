@@ -12,7 +12,7 @@ from utils.ultilities import config_seed, save_checkpoint, EarlyStopping
 from utils.loader import get_columns, preprocess_pipeline, AQDataSet
 from torch.utils.data import DataLoader
 from src.models.stdgi import Attention_STDGI, InterpolateAttention_STDGI
-from src.models.decoder import Decoder, InterpolateAttentionDecoder
+from src.models.decoder import Decoder, InterpolateAttentionDecoder, InterpolateDecoder
 from src.modules.train.train import train_atten_decoder_fn
 from src.modules.train.train import train_atten_stdgi
 
@@ -24,14 +24,15 @@ def parse_args():
         default=[i for i in range(20)],
         type=list,
     )
+
     parser.add_argument("--input_dim", default=7, type=int)
     parser.add_argument("--output_dim", default=1, type=int)
     parser.add_argument("--sequence_lenght", default=12, type=int)
     parser.add_argument("--batch_size", default=32, type=int)
-    parser.add_argument("--patience", default=3, type=int)
+    parser.add_argument("--patience", default=10, type=int)
 
     parser.add_argument("--lr_stdgi", default=5e-3, type=float)
-    parser.add_argument("--num_epochs_stdgi", default=1, type=int)
+    parser.add_argument("--num_epochs_stdgi", default=100, type=int)
     parser.add_argument("--output_stdgi", default=2, type=int)
     parser.add_argument(
         "--checkpoint_stdgi", default="./out/checkpoint/stdgi.pt", type=str
@@ -41,8 +42,7 @@ def parse_args():
     parser.add_argument("--dis_hid", default=6, type=int)
     parser.add_argument("--act_fn", default="relu", type=str)
     parser.add_argument("--delta_stdgi", default=0, type=float)
-
-    parser.add_argument("--num_epochs_decoder", default=1, type=int)
+    parser.add_argument("--num_epochs_decoder", default=100, type=int)
     parser.add_argument("--lr_decoder", default=5e-3, type=float)
     parser.add_argument(
         "--checkpoint_decoder", default="./out/checkpoint/decoder.pt", type=str
@@ -54,7 +54,9 @@ def parse_args():
     parser.add_argument("--rnn_type", default="LSTM", type=str)
     parser.add_argument("--n_layers_rnn", default=1, type=int)
     parser.add_argument("--interpolate", default=True, type=bool)
+    parser.add_argument("--attention_decoder", default=True,type=bool)
     return parser.parse_args()
+
 from utils.loader import comb_df
 from utils.loader import get_columns,AQDataSet,location_arr
 
@@ -138,19 +140,32 @@ if __name__ == "__main__":
             fc_hid_dim=args.fc_hid_dim,
         ).to(device)
     else:
-        decoder = InterpolateAttentionDecoder(
-            args.input_dim + args.output_stdgi,
-            args.output_dim,
-            n_layers_rnn=args.n_layers_rnn,
-            rnn=args.rnn_type,
-            cnn_hid_dim=args.cnn_hid_dim,
-            fc_hid_dim=args.fc_hid_dim,                                   
-        ).to(device)
+        if not args.attention_decoder:
+            decoder = InterpolateDecoder(
+                args.input_dim + args.output_stdgi,
+                args.output_dim,
+                n_layers_rnn=args.n_layers_rnn,
+                rnn=args.rnn_type,
+                cnn_hid_dim=args.cnn_hid_dim,
+                fc_hid_dim=args.fc_hid_dim,                                   
+            ).to(device)
+        else:
+            decoder = InterpolateAttentionDecoder(
+                args.input_dim + args.output_stdgi,
+                args.output_dim,
+                num_stat=len(args.train_station), 
+                stdgi_out_dim=args.output_stdgi,
+                n_layers_rnn=args.n_layers_rnn,
+                rnn=args.rnn_type,
+                cnn_hid_dim=args.cnn_hid_dim,
+                fc_hid_dim=args.fc_hid_dim,                                   
+            ).to(device)
 
     optimizer_decoder = torch.optim.Adam(
         decoder.parameters(), lr=args.lr_decoder, weight_decay=l2_coef
     )
     train_decoder_loss = []
+
     early_stopping_decoder = EarlyStopping(
         patience=args.patience,
         verbose=True,
