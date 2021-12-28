@@ -3,6 +3,8 @@ from tqdm import tqdm
 import numpy as np
 from sklearn.metrics import r2_score,mean_absolute_percentage_error,mean_squared_error, mean_absolute_error
 
+
+
 def cal_acc(y_prd,y_grt):
     mae = mean_absolute_error(y_grt,y_prd)
     mse = mean_squared_error(y_grt,y_prd,squared=True)
@@ -11,6 +13,7 @@ def cal_acc(y_prd,y_grt):
     corr = np.corrcoef(np.reshape(y_grt,(-1)),np.reshape(y_prd,(-1)))[0][1]
     r2 = r2_score(y_grt,y_prd)
     return mae,mse,mape,rmse,r2,corr
+
 
 def test_atten_decoder_fn(stdgi, decoder, dataloader, device, interpolate=False):
     decoder.eval()
