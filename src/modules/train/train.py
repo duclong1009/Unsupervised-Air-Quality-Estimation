@@ -109,7 +109,9 @@ def train_atten_stdgi(
                 if not interpolate:
                     output = stdgi(x, x, G.unsqueeze(0))
                 else:
-                    output = stdgi(x, x, G.unsqueeze(0), l)
+                    # import pdb; pdb.set_trace()
+                    output, _ = stdgi(x, x, G.unsqueeze(0), l)
+                    # print(output.shape)
                 lbl_1 = torch.ones(output.shape[0], output.shape[1], 1)
                 lbl_2 = torch.zeros(output.shape[0],output.shape[1], 1)
                 lbl = torch.cat((lbl_1, lbl_2), -1).to(device)
@@ -126,7 +128,7 @@ def train_atten_stdgi(
             if not interpolate:
                 output = stdgi(x, x, G.unsqueeze(0))
             else:
-                output = stdgi(x, x, G.unsqueeze(0), l)
+                output, _ = stdgi(x, x, G.unsqueeze(0), l)
             lbl_1 = torch.ones(output.shape[0], output.shape[1], 1)
             lbl_2 = torch.zeros(output.shape[0], output.shape[1], 1)
             lbl = torch.cat((lbl_1, lbl_2), -1).to(device)
@@ -154,8 +156,8 @@ def train_atten_decoder_fn(stdgi, decoder, dataloader, criterion, optimizer, dev
                 h = stdgi.embedd(x, G.unsqueeze(0))
                 y_prd = decoder(x[-1].unsqueeze(0), h, l)  # 3x1x1
             else:
-                h = stdgi.embedd(x, G.unsqueeze(0), l)
-                y_prd = decoder(x[-1].unsqueeze(0), h, l)
+                h, enc_hidd = stdgi.embedd(x, G.unsqueeze(0), l)
+                y_prd = decoder(x[-1].unsqueeze(0), h, enc_hidd, l)
             batch_loss += criterion(torch.squeeze(y_prd), torch.squeeze(y_grt))
         batch_loss = batch_loss / data["X"].shape[0]
         batch_loss.backward()

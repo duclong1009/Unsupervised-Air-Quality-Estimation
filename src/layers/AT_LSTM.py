@@ -9,5 +9,5 @@ class AT_LSTM(nn.Module):
         x_ = torch.transpose(x,0,2)
         print(x_.shape)
 
-if __name__ == '__main__':
-    model = AT
+# if __name__ == '__main__':
+#     # model = AT

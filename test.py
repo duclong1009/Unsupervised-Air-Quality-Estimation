@@ -52,3 +52,5 @@ if __name__ == "__main__":
         print(i["X"].shape)
         break
     # print(location_.shape)
+    model = InterpolateAttentionDecoder(in_ft=8, out_ft=1, num_stat=28)
+    print(model.forward(torch.rand(1,27,6), torch.rand(1,28,2), torch.rand(1,27)).shape )
