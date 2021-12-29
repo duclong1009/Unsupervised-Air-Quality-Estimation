@@ -68,39 +68,16 @@ def rolling(x):
 
 from sklearn.impute import KNNImputer, SimpleImputer
 
-# def preprocess_pipeline(df, threshold=50):
-#     sta_ = ["Station_{}".format(i) for i in range(65)]
-#     lst_cols = list(set(list(df.columns)) - set(["Year", "Month", "Day", "Hour"]))
-#     type_transformer = FunctionTransformer(to_numeric)
-#     outlier_transformer = FunctionTransformer(remove_outlier)
-#     rolling_transformer = FunctionTransformer(rolling)
-#     num_pl = Pipeline(
-#         steps=[
-#             ("numeric_transform", type_transformer),
-#             # ('roll_transform', rolling_transformer),
-#             ("imputer", SimpleImputer(strategy="most_frequent")),
-#         ],
-#     )
-#     scaler = MinMaxScaler()
-#     preprocessor = ColumnTransformer(transformers=[("num", num_pl, lst_cols)])
-#     res = preprocessor.fit_transform(df)
-#     res = np.array(res)
-#     n_ = res.shape[1]
-#     res = np.reshape(res, (-1, 1))
-#     res = np.where(res <= threshold, res, threshold)
-#     res = scaler.fit_transform(res)
-#     res = np.reshape(res, (-1, n_))
-#     trans_df = pd.DataFrame(res, columns=lst_cols, index=df.index)
-#     trans_df[["Year", "Month", "Day", "Hour"]] = df[["Year", "Month", "Day", "Hour"]]
-#     return trans_df, scaler
-
 def preprocess_pipeline(df, threshold=50):
+    # 800,35,17
     scaler = MinMaxScaler()
-    n_ = df.shape[1]
-    res = np.reshape(df, (-1, 7))
-    res = np.where(res <= threshold, res, threshold)
+    # import pdb; pdb.set_trace()
+    (a,b,c) =  df.shape
+    res = np.reshape(df, (-1, c))
+
+    # res = np.where(res <= threshold, res, threshold)
     res = scaler.fit_transform(res)
-    res = np.reshape(res, (-1, n_,7))
+    res = np.reshape(res, (-1, b,c))
     # trans_df = pd.DataFrame(res, columns=lst_cols, index=df.index)
     # trans_df[["Year", "Month", "Day", "Hour"]] = df[["Year", "Month", "Day", "Hour"]]
     return res, scaler
@@ -139,8 +116,9 @@ def location_arr(file_path, res):
     return np.array(list_location)
 
 def get_data_array(file_path):
-    columns = ['PM2.5','Hour','Month', 'AQI', 'PM10',  'CO', 'NO2', 'O3', 'SO2', 'prec',
+    columns = ['PM2.5','Hour','Month', 'AQI', 'PM10','Mean',  'CO', 'NO2', 'O3', 'SO2', 'prec',
        'lrad', 'shum', 'pres', 'temp', 'wind', 'srad']
+    # columns = ['PM2.5','AQI','PM10','CO','O3','SO2','NO2']
     location_df = pd.read_csv(file_path + "location.csv")
     station = location_df['location'].values
     location = location_df.values[:,1:]
@@ -179,7 +157,6 @@ class AQDataSet(Dataset):
         ), "tram test khong trong tram train"
         # self.list_cols_train = ["Station_{}".format(i) for i in list_train_station]
         self.list_cols_train_int = list_train_station
-        self.transform = transform
         self.input_len = input_dim
         self.test = test
         self.data_df = data_df

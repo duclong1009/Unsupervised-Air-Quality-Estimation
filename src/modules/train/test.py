@@ -18,7 +18,6 @@ def cal_acc(y_prd,y_grt):
 def test_atten_decoder_fn(stdgi, decoder, dataloader, device, interpolate=False):
     decoder.eval()
     stdgi.eval()
-    epoch_loss = 0
     list_prd = []
     list_grt = []
     with torch.no_grad():

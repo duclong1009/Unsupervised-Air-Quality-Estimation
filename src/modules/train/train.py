@@ -52,7 +52,7 @@ def train_decoder_fn(stdgi, decoder, dataloader, criterion, optimizer, device):
 def train_stdgi_with_trick_fn(
     stdgi, dataloader, optim_e, optim_d, criterion, device, n_steps=2
 ):
-    # stdgi = STDGI(12,60, gconv=gconv).to(device)
+    stdgi.train()
     epoch_loss = 0
     for data in tqdm(dataloader):
         loss = 0
@@ -97,8 +97,9 @@ def train_atten_stdgi(
     '''
     # stdgi = STDGI(12,60, gconv=gconv).to(device)
     epoch_loss = 0
+    stdgi.train()
     for data in tqdm(dataloader):
-        loss = 0
+        e_loss = 0  
         for i in range(n_steps):
             optim_d.zero_grad()
             d_loss = 0
@@ -132,13 +133,12 @@ def train_atten_stdgi(
             lbl_1 = torch.ones(output.shape[0], output.shape[1], 1)
             lbl_2 = torch.zeros(output.shape[0], output.shape[1], 1)
             lbl = torch.cat((lbl_1, lbl_2), -1).to(device)
-            d_loss += criterion(output, lbl)
             # import pdb; pdb.set_trace()
-            loss += criterion(output, lbl)
-        loss = loss / data["X"].shape[0]
-        loss.backward()
+            e_loss += criterion(output, lbl)
+        e_loss = e_loss / data["X"].shape[0]
+        e_loss.backward()
         optim_e.step()
-        epoch_loss += loss
+        epoch_loss += e_loss
     return epoch_loss / len(dataloader)
 
 def train_atten_decoder_fn(stdgi, decoder, dataloader, criterion, optimizer, device, interpolate=False):

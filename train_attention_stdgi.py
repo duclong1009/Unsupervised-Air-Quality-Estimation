@@ -8,7 +8,7 @@ from tqdm.notebook import tqdm
 # from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 import pandas as pd
-from modules.train.test import cal_acc, test_atten_decoder_fn
+from src.modules.train.test import cal_acc, test_atten_decoder_fn
 from utils.ultilities import config_seed, save_checkpoint, EarlyStopping
 from utils.loader import  get_data_array, preprocess_pipeline, AQDataSet
 from torch.utils.data import DataLoader
@@ -25,15 +25,15 @@ def parse_args():
         default=[i for i in range(20)],
         type=list,
     )
-    parser.add_argument("--input_dim", default=16, type=int)
+    parser.add_argument("--input_dim", default=17, type=int)
     parser.add_argument("--output_dim", default=1, type=int)
     parser.add_argument("--sequence_length", default=12, type=int)
     parser.add_argument("--batch_size", default=32, type=int)
-    parser.add_argument("--patience", default=10, type=int)
+    parser.add_argument("--patience", default=3, type=int)
 
     parser.add_argument("--lr_stdgi", default=5e-3, type=float)
     parser.add_argument("--num_epochs_stdgi", default=100, type=int)
-    parser.add_argument("--output_stdgi", default=2, type=int)
+    parser.add_argument("--output_stdgi", default=60, type=int)
     parser.add_argument(
         "--checkpoint_stdgi", default="./out/checkpoint/stdgi.pt", type=str
     )
@@ -60,27 +60,44 @@ def parse_args():
 
 from utils.loader import comb_df
 from utils.loader import get_columns,AQDataSet,location_arr
+import logging
+
 import json 
+# def init_weights(m):
+#     if isinstance(m, nn.Linear):
+#         torch.nn.init.xavier_uniform(m.weight)
+#         m.bias.data.fill_(0.01)
+
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s :: %(levelname)s :: %(message)s')
     args = parse_args()
     config_seed(args.seed)
     # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     device = torch.device("cpu")
     file_path = "./data/Beijing2/"
     comb_arr,location_, station = get_data_array(file_path)
+    trans_df, scaler = preprocess_pipeline(comb_arr)
+
+    # file_path = "./data/Beijing/"
+    # # Preprocess and Load data
+    # res,res_rev,df = get_columns(file_path)
+    # comb_arr,b = comb_df(file_path,df,res)
+    # location_ = location_arr(file_path,res)
     # trans_df, scaler = preprocess_pipeline(comb_arr)
+
     train_dataset = AQDataSet(
-        data_df=comb_arr[:50],
+        data_df=trans_df[:200],
         location_df=location_,
-        list_train_station=[i for  i in range(20)],
+        list_train_station= args.train_station,
         input_dim=args.sequence_length,
         # output_dim=args.output_dim,
         interpolate=args.interpolate
     )
 
     train_dataloader = DataLoader(
-        train_dataset, batch_size=32, shuffle=True
+        train_dataset, batch_size=args.batch_size, shuffle=True
     )
+
     # Model Stdgi
     if not args.interpolate:
         stdgi = Attention_STDGI(
@@ -102,7 +119,7 @@ if __name__ == "__main__":
     mse_loss = nn.MSELoss()
     bce_loss = nn.BCELoss()
     stdgi_optimizer_e = torch.optim.Adam(
-        stdgi.encoder.parameters(), lr=args.lr_stdgi, weight_decay=l2_coef
+        stdgi.encoder.parameters(), lr=args.lr_stdgi,weight_decay=l2_coef
     )
     stdgi_optimizer_d = torch.optim.Adam(
         stdgi.disc.parameters(), lr=args.lr_stdgi, weight_decay=l2_coef
@@ -113,8 +130,9 @@ if __name__ == "__main__":
         delta=args.delta_stdgi,
         path=args.checkpoint_stdgi,
     )
-
+    logging.info(f"Training stdgi ||  interpolate {args.interpolate} || epochs {args.num_epochs_stdgi} || lr {args.lr_stdgi}")
     train_stdgi_loss = []
+    # stdgi.apply(init_weights)
     for i in range(args.num_epochs_stdgi):
         if not early_stopping_stdgi.early_stop:
             loss = train_atten_stdgi(
@@ -127,7 +145,8 @@ if __name__ == "__main__":
                 interpolate=args.interpolate
             )
             early_stopping_stdgi(loss, stdgi)
-            print("Epochs/Loss: {}/ {}".format(i, loss))
+            logging.info("Epochs/Loss: {}/ {}".format(i, loss))
+
     if not args.interpolate:
         decoder = Decoder(
             args.input_dim + args.output_stdgi,
@@ -137,6 +156,7 @@ if __name__ == "__main__":
             cnn_hid_dim=args.cnn_hid_dim,
             fc_hid_dim=args.fc_hid_dim,
         ).to(device)
+
     else:
         if not args.attention_decoder:
             decoder = InterpolateDecoder(
@@ -171,7 +191,7 @@ if __name__ == "__main__":
         delta=args.delta_decoder,
         path=args.checkpoint_decoder,
     )
-
+    
     for i in range(args.num_epochs_decoder):
         if not early_stopping_decoder.early_stop:
             epoch_loss = train_atten_decoder_fn(

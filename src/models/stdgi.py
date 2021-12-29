@@ -136,7 +136,6 @@ def get_interpolate(inp_feat, lst_rev_distance):  # inp: 12, 27, 1  lst_rev_dist
     
     add_feat_ = add_feat.reshape(add_feat.shape[0], add_feat.shape[2], add_feat.shape[1]) # 12, 1, 6
     total_feat = torch.cat((inp_feat, add_feat_), dim=1) # 12, 28, 6
-    # print(total_feat.shape)
     return total_feat
 
 
