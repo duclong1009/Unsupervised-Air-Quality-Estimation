@@ -51,7 +51,8 @@ if __name__ == "__main__":
     location_ = location_arr(file_path,res)
     dataset = AQDataSet(a,location_,[i for i in range(20)],12)
     for i in dataset:
-        print(i["X"].shape)
+        print
+        (i["X"].shape)
         break
     # print(location_.shape)
 >>>>>>> longnd
