@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-
+import torch.nn.functional as F 
 
 class Decoder(nn.Module):
     def __init__(
@@ -34,9 +34,12 @@ class Decoder(nn.Module):
         l.shape = (n1-1) x 1 = (27* 1)
         """
 
+        batch_size = x.shape[1]
+        time_st = x.shape[0]
         l_ = l / l.sum()
         l_ = l_.T
-        l_ = l_.reshape(1, 27, 1)
+        # print(a)
+        l_ = l_.reshape(time_st, batch_size, 1)
         x_ = torch.cat((x, h), dim=2)  # timestep x nodes x hidden feat
         # hid_state = torch.zeros(1, batch_size, self.in_ft).to(DEVICE)
         output, hid_state = self.rnn(x_) # hidden_state = (seq_len,60, 27)
@@ -50,12 +53,11 @@ class Decoder(nn.Module):
         ret = self.linear2(ret) # (64,1)
         ret = self.relu(ret) # (1)
         return ret
-
-class InterpolateAttentionDecoder(nn.Module):
+class InterpolateDecoder(nn.Module):
     def __init__(
         self, in_ft, out_ft, n_layers_rnn=1, rnn="GRU", cnn_hid_dim=128, fc_hid_dim=64
     ):
-        super(InterpolateAttentionDecoder, self).__init__()
+        super(InterpolateDecoder, self).__init__()
         self.in_ft = in_ft
         self.out_ft = out_ft
         self.n_layers_rnn = n_layers_rnn
@@ -84,7 +86,8 @@ class InterpolateAttentionDecoder(nn.Module):
         l.shape = n1 x 1 = (27* 1)
         """ 
         # import pdb; pdb.set_trace()
-        x_inter = get_interpolate(x, l)
+
+        x_inter = get_interpolate(x, l) #(1, 28, 7)
 
         x_ = torch.cat((x_inter, h), dim=2)  # timestep x nodes x hidden feat (1,28,1) (1,28,2)
         # hid_state = torch.zeros(1, batch_size, self.in_ft).to(DEVICE)
@@ -117,47 +120,82 @@ def get_interpolate(inp_feat, lst_rev_distance):  # inp: 12, 27, 6  lst_rev_dist
     return total_feat
 
 
-# class AttneDecoder(nn.Module):
-#     def __init__(
-#         self, in_ft, out_ft, n_layers_rnn=1, cnn_hid_dim=128, fc_hid_dim=64
-#     ):
-#         super(BaseDecoder, self).__init__()
-#         self.in_ft = in_ft
-#         self.out_ft = out_ft
-#         self.n_layers_rnn = n_layers_rnn
-#         self.cnn = nn.Conv1d(
-#             in_channels=in_ft,
-#             out_channels=cnn_hid_dim,
-#             kernel_size=5,
-#             padding=2,
-#             stride=1,
-#         )
-#         self.linear = nn.Linear(in_features=cnn_hid_dim, out_features=fc_hid_dim)
-#         self.linear2 = nn.Linear(fc_hid_dim, out_ft)
-#         self.relu = nn.ReLU()
+class InterpolateAttentionDecoder(nn.Module):
+    def __init__(
+        self, in_ft ,out_ft, num_stat, en_hid1=200,stdgi_out_dim=2, n_layers_rnn=1, rnn="GRU", cnn_hid_dim=128, fc_hid_dim=64, drop_prob=0.5
+    ):
+        super(InterpolateAttentionDecoder, self).__init__()
+        self.in_ft = in_ft
+        self.out_ft = out_ft
+        self.n_layers_rnn = n_layers_rnn
+        if rnn == "GRU":
+            self.rnn = nn.GRU(in_ft, in_ft, batch_first=False, num_layers=n_layers_rnn)
+        elif rnn == "LSTM":
+            self.rnn = nn.LSTM(in_ft, in_ft, batch_first=False, num_layers=n_layers_rnn)
+        else:
+            self.rnn = nn.RNN(in_ft, in_ft, batch_first=False, num_layers=n_layers_rnn)
+        self.cnn = nn.Conv1d(
+            in_channels=in_ft,
+            out_channels=cnn_hid_dim,
+            kernel_size=5,
+            padding=2,
+            stride=1,
+        )
+        self.linear = nn.Linear(in_features=cnn_hid_dim, out_features=fc_hid_dim)
+        self.linear2 = nn.Linear(fc_hid_dim, out_ft)
 
-#     def forward(self, x, h, l):
-#         """
-#         x.shape = steps x (n1-1) x num_ft
-#         h.shape = steps x (n1-1) x latent_dim
-#         l.shape = (n1-1) x 1
-#         """
+        self.relu = nn.ReLU()
+        self.tanh = nn.Tanh()
+        self.embedding = nn.Linear(in_ft-stdgi_out_dim, in_ft-stdgi_out_dim) # (28,1)
+        self.dropout = nn.Dropout(drop_prob)
+        self.linear3 = nn.Linear(en_hid1 * 2, in_ft - stdgi_out_dim ) # linear of catted encoder hidden [h,c] 
+        self.linear4 = nn.Linear(num_stat, 1)
 
-#         batch_size = x.shape[1]
-#         l_ = l / l.sum()
-#         l_ = l_.T
-#         l_ = l_.reshape(1, 27, 1)
-#         x_ = torch.cat((x, h), dim=2)  # timestep x nodes x hidden feat
-#         # hid_state = torch.zeros(1, batch_size, self.in_ft).to(DEVICE)
-#         x_ = x_.reshape(1, x_.shape[1], x_.shape[0])
-#         ret = self.cnn(x_)
-#         ret = torch.bmm(ret, l_)
-#         ret = ret.reshape(ret.shape[0], -1)
-#         ret = self.linear(ret)
-#         ret = self.relu(ret)
-#         ret = self.linear2(ret)
-#         ret = self.relu(ret)
-#         return ret
+    def forward(self, x, h, enc_hidd,l):
+        """
+        x.shape = steps x (n1-1) x num_ft
+        h.shape = steps x n1 x latent_dim
+        l.shape = n1 x 1 = (27* 1)
+        enc_hidden = steps * n1 * en_hid1(200)
+        """ 
+        x_inter = get_interpolate(x, l) #(1, 20, 6)
+        # x_ = x_inter.reshape(x_inter.shape[0], x_inter.shape[2], x_inter.shape[1]) # (1,28,6) -> (1, 6, 28)
+        
+        embedded = self.embedding(x_inter ) # (1, 20,6) -> (1, 20, 6)
+        embedded = self.dropout(embedded)  
+
+        # import pdb; pdb.set_trace()
+
+        encoder_hidden = enc_hidd[0] # h
+        encoder_context = enc_hidd[1] # c
+
+        cated_encoder = torch.cat((encoder_hidden, encoder_context), 2) #(1,20,200) + (1,20,200) -> (1, 20,400)
+        cated_encoder= self.linear3(cated_encoder) # (1, 20, 400) -> (1, 20, 6)
+
+        cated_encoder_embedded = self.tanh(torch.squeeze(torch.add(cated_encoder, embedded), 0)) # (1, 20, 6) + (1, 20, 6) -> (20,6)
+        cated_encoder_embedded  = self.linear4(cated_encoder_embedded.T) # (6,20) * (20,1) = (6,1)
+
+        attn_weights = F.softmax(cated_encoder_embedded.T, dim=1) # (6,1)-> (1,6)
+        dim_2 = attn_weights.shape[1]
+        attn_weights = attn_weights.unsqueeze(1).repeat(1, dim_2, 1) # (1,6) -> (1, 6, 6)
+        attn_applied = torch.bmm(x_inter, attn_weights) # x_inter=(1, 20, 6) attn_weights=(1, 6,6) => (1, 20, 6)
+
+        x_ = torch.cat((attn_applied, h), dim=2)  # timestep x nodes x hidden feat (1,20,6) (1,20,2)
+            
+        output, hid_state = self.rnn(x_) # output = (seq_len, 28, 60)
+
+        x_ = output[-1] # (1, 28, 60)
+        x_ = x_.reshape(1, x_.shape[1], x_.shape[0]) # output = (1, 60, 28)
+        ret = self.cnn(x_) # CNN: (input_size, hidden_dim) = (60, 128), ret = (1, 128, 28)
+        ret = ret[:,:,-1] # size = (1, 128,1)
+        
+        ret = ret.reshape(ret.shape[0], -1) # output = (1,128)
+        ret = self.linear(ret) # (128, 1)
+        ret = self.relu(ret) # (128,64)
+        ret = self.linear2(ret) # (64,1)
+        ret = self.relu(ret) # (1)
+        return ret 
+
 
 if __name__ == "__main__":
     decoder = Decoder(61,1,1,128,64)

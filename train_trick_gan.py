@@ -67,11 +67,9 @@ if __name__ == "__main__":
     res,res_rev,df = get_columns(file_path)
     comb_arr,b = comb_df(file_path,df,res)
     location_ = location_arr(file_path,res)
-    # trans_df, scaler = preprocess_pipeline(pm_df)
-    # print(comb_arr.shape)
     comb_arrr , scaler = preprocess_pipeline(comb_arr)
     train_dataset = AQDataSet(
-        data_df=comb_arr[:50],
+        data_df=comb_arr[:500],
         location_df=location_,
         list_train_station=args.train_station,
         input_dim=args.sequence_lenght,

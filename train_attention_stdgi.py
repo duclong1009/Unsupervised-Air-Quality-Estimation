@@ -8,11 +8,12 @@ from tqdm.notebook import tqdm
 # from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 import pandas as pd
+from src.modules.train.test import cal_acc, test_atten_decoder_fn
 from utils.ultilities import config_seed, save_checkpoint, EarlyStopping
-from utils.loader import get_columns, preprocess_pipeline, AQDataSet
+from utils.loader import  get_data_array, preprocess_pipeline, AQDataSet
 from torch.utils.data import DataLoader
 from src.models.stdgi import Attention_STDGI, InterpolateAttention_STDGI
-from src.models.decoder import Decoder, InterpolateAttentionDecoder
+from src.models.decoder import Decoder, InterpolateAttentionDecoder, InterpolateDecoder
 from src.modules.train.train import train_atten_decoder_fn
 from src.modules.train.train import train_atten_stdgi
 
@@ -24,25 +25,25 @@ def parse_args():
         default=[i for i in range(20)],
         type=list,
     )
-    parser.add_argument("--input_dim", default=7, type=int)
+    parser.add_argument("--input_dim", default=17, type=int)
     parser.add_argument("--output_dim", default=1, type=int)
-    parser.add_argument("--sequence_lenght", default=12, type=int)
+    parser.add_argument("--sequence_length", default=12, type=int)
     parser.add_argument("--batch_size", default=32, type=int)
     parser.add_argument("--patience", default=3, type=int)
 
     parser.add_argument("--lr_stdgi", default=5e-3, type=float)
-    parser.add_argument("--num_epochs_stdgi", default=1, type=int)
-    parser.add_argument("--output_stdgi", default=2, type=int)
+    parser.add_argument("--num_epochs_stdgi", default=100, type=int)
+    parser.add_argument("--output_stdgi", default=60, type=int)
     parser.add_argument(
         "--checkpoint_stdgi", default="./out/checkpoint/stdgi.pt", type=str
     )
+    parser.add_argument("--output_path",default="./out/" , type=str)
     parser.add_argument("--en_hid1", default=200, type=int)
     parser.add_argument("--en_hid2", default=400, type=int)
     parser.add_argument("--dis_hid", default=6, type=int)
     parser.add_argument("--act_fn", default="relu", type=str)
     parser.add_argument("--delta_stdgi", default=0, type=float)
-
-    parser.add_argument("--num_epochs_decoder", default=1, type=int)
+    parser.add_argument("--num_epochs_decoder", default=100, type=int)
     parser.add_argument("--lr_decoder", default=5e-3, type=float)
     parser.add_argument(
         "--checkpoint_decoder", default="./out/checkpoint/decoder.pt", type=str
@@ -54,31 +55,49 @@ def parse_args():
     parser.add_argument("--rnn_type", default="LSTM", type=str)
     parser.add_argument("--n_layers_rnn", default=1, type=int)
     parser.add_argument("--interpolate", default=True, type=bool)
+    parser.add_argument("--attention_decoder", default=True,type=bool)
     return parser.parse_args()
+
 from utils.loader import comb_df
 from utils.loader import get_columns,AQDataSet,location_arr
+import logging
+
+import json 
+# def init_weights(m):
+#     if isinstance(m, nn.Linear):
+#         torch.nn.init.xavier_uniform(m.weight)
+#         m.bias.data.fill_(0.01)
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s :: %(levelname)s :: %(message)s')
     args = parse_args()
     config_seed(args.seed)
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     device = torch.device("cpu")
-    file_path = "./data/Beijing/"
-    # Preprocess and Load data
-    res,res_rev,df = get_columns(file_path)
-    comb_arr,b = comb_df(file_path,df,res)
-    location_ = location_arr(file_path,res)
-    # trans_df, scaler = preprocess_pipeline(pm_df)
+    file_path = "./data/Beijing2/"
+    comb_arr,location_, station = get_data_array(file_path)
+    trans_df, scaler = preprocess_pipeline(comb_arr)
+
+    # file_path = "./data/Beijing/"
+    # # Preprocess and Load data
+    # res,res_rev,df = get_columns(file_path)
+    # comb_arr,b = comb_df(file_path,df,res)
+    # location_ = location_arr(file_path,res)
+    # trans_df, scaler = preprocess_pipeline(comb_arr)
+
     train_dataset = AQDataSet(
-        data_df=comb_arr[:50],
+        data_df=trans_df[:200],
         location_df=location_,
-        list_train_station=args.train_station,
-        input_dim=args.sequence_lenght,
+        list_train_station= args.train_station,
+        input_dim=args.sequence_length,
         # output_dim=args.output_dim,
         interpolate=args.interpolate
     )
+
     train_dataloader = DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=True
     )
+
     # Model Stdgi
     if not args.interpolate:
         stdgi = Attention_STDGI(
@@ -100,7 +119,7 @@ if __name__ == "__main__":
     mse_loss = nn.MSELoss()
     bce_loss = nn.BCELoss()
     stdgi_optimizer_e = torch.optim.Adam(
-        stdgi.encoder.parameters(), lr=args.lr_stdgi, weight_decay=l2_coef
+        stdgi.encoder.parameters(), lr=args.lr_stdgi,weight_decay=l2_coef
     )
     stdgi_optimizer_d = torch.optim.Adam(
         stdgi.disc.parameters(), lr=args.lr_stdgi, weight_decay=l2_coef
@@ -111,8 +130,9 @@ if __name__ == "__main__":
         delta=args.delta_stdgi,
         path=args.checkpoint_stdgi,
     )
-
+    logging.info(f"Training stdgi ||  interpolate {args.interpolate} || epochs {args.num_epochs_stdgi} || lr {args.lr_stdgi}")
     train_stdgi_loss = []
+    # stdgi.apply(init_weights)
     for i in range(args.num_epochs_stdgi):
         if not early_stopping_stdgi.early_stop:
             loss = train_atten_stdgi(
@@ -125,7 +145,8 @@ if __name__ == "__main__":
                 interpolate=args.interpolate
             )
             early_stopping_stdgi(loss, stdgi)
-            print("Epochs/Loss: {}/ {}".format(i, loss))
+            logging.info("Epochs/Loss: {}/ {}".format(i, loss))
+
     if not args.interpolate:
         decoder = Decoder(
             args.input_dim + args.output_stdgi,
@@ -135,26 +156,42 @@ if __name__ == "__main__":
             cnn_hid_dim=args.cnn_hid_dim,
             fc_hid_dim=args.fc_hid_dim,
         ).to(device)
+
     else:
-        decoder = InterpolateAttentionDecoder(
-            args.input_dim + args.output_stdgi,
-            args.output_dim,
-            n_layers_rnn=args.n_layers_rnn,
-            rnn=args.rnn_type,
-            cnn_hid_dim=args.cnn_hid_dim,
-            fc_hid_dim=args.fc_hid_dim,                                   
-        ).to(device)
+        if not args.attention_decoder:
+            decoder = InterpolateDecoder(
+                args.input_dim + args.output_stdgi,
+                args.output_dim,
+                n_layers_rnn=args.n_layers_rnn,
+                rnn=args.rnn_type,
+                cnn_hid_dim=args.cnn_hid_dim,
+                fc_hid_dim=args.fc_hid_dim,                                   
+            ).to(device)
+        else:
+            decoder = InterpolateAttentionDecoder(
+                args.input_dim + args.output_stdgi,
+                args.output_dim,
+                num_stat=len(args.train_station), 
+                stdgi_out_dim=args.output_stdgi,
+                n_layers_rnn=args.n_layers_rnn,
+                rnn=args.rnn_type,
+                cnn_hid_dim=args.cnn_hid_dim,
+                fc_hid_dim=args.fc_hid_dim,                                   
+            ).to(device)
 
     optimizer_decoder = torch.optim.Adam(
         decoder.parameters(), lr=args.lr_decoder, weight_decay=l2_coef
     )
+    
     train_decoder_loss = []
+
     early_stopping_decoder = EarlyStopping(
         patience=args.patience,
         verbose=True,
         delta=args.delta_decoder,
         path=args.checkpoint_decoder,
     )
+    
     for i in range(args.num_epochs_decoder):
         if not early_stopping_decoder.early_stop:
             epoch_loss = train_atten_decoder_fn(
@@ -162,5 +199,32 @@ if __name__ == "__main__":
             )
             early_stopping_decoder(epoch_loss, decoder)
             print("Epochs/Loss: {}/ {}".format(i, epoch_loss))
-
         train_decoder_loss.append(epoch_loss)
+
+    #test
+    list_acc = []
+    predict = {}
+    for test_station in args.test_station:
+        test_dataset = AQDataSet(
+            data_df=comb_arr[:50],
+            location_df=location_,
+            list_train_station=[i for  i in range(20)],
+            test_station=test_station,
+            test = True,
+            input_dim=args.sequence_length,
+            # output_dim=args.output_dim,
+            interpolate=args.interpolate
+        )
+        test_dataloader = DataLoader(
+            test_dataset, batch_size=args.batch_size, shuffle=True
+        )
+
+        list_prd,list_grt = test_atten_decoder_fn(stdgi,decoder,test_dataloader,device, args.interpolate)
+        mae,mse,mape,rmse,r2,corr = cal_acc(list_prd,list_grt)
+        list_acc.append([test_station,mae,mse,mape,rmse,r2,corr])
+        predict[test_station] = {"grt":list_grt,"prd":list_prd}
+        print("Test Accuracy: {}".format(mae,mse,corr))
+    df = pd.DataFrame(np.array(list_acc),columns=['STATION','MAE','MSE','R2','CORR'])
+    df.to_csv(args.output_path + "test/acc.csv",index=False)
+    with open(args.output_path + "test/predict.json", "w") as f:
+        json.dump(predict, f)

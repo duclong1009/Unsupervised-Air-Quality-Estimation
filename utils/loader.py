@@ -42,7 +42,6 @@ def get_columns(file_path):
             i -= 1
             stat_name = "Station_" + str(i)
             res.update({stat_name: col})
-            # print({stat_name: col })
             res_rev.update({col: stat_name})
 
     pm_df = df.rename(columns=res_rev)
@@ -69,52 +68,16 @@ def rolling(x):
 
 from sklearn.impute import KNNImputer, SimpleImputer
 
-# def preprocess_pipeline(df, threshold=50):
-#     sta_ = ["Station_{}".format(i) for i in range(65)]
-#     lst_cols = list(set(list(df.columns)) - set(["Year", "Month", "Day", "Hour"]))
-#     type_transformer = FunctionTransformer(to_numeric)
-#     outlier_transformer = FunctionTransformer(remove_outlier)
-#     rolling_transformer = FunctionTransformer(rolling)
-#     num_pl = Pipeline(
-#         steps=[
-#             ("numeric_transform", type_transformer),
-#             # ('roll_transform', rolling_transformer),
-#             ("imputer", SimpleImputer(strategy="most_frequent")),
-#         ],
-#     )
-#     scaler = MinMaxScaler()
-#     preprocessor = ColumnTransformer(transformers=[("num", num_pl, lst_cols)])
-#     res = preprocessor.fit_transform(df)
-#     res = np.array(res)
-#     n_ = res.shape[1]
-#     res = np.reshape(res, (-1, 1))
-#     res = np.where(res <= threshold, res, threshold)
-#     res = scaler.fit_transform(res)
-#     res = np.reshape(res, (-1, n_))
-#     trans_df = pd.DataFrame(res, columns=lst_cols, index=df.index)
-#     trans_df[["Year", "Month", "Day", "Hour"]] = df[["Year", "Month", "Day", "Hour"]]
-#     return trans_df, scaler
-
 def preprocess_pipeline(df, threshold=50):
-    # type_transformer = FunctionTransformer(to_numeric)
-    # outlier_transformer = FunctionTransformer(remove_outlier)
-    # rolling_transformer = FunctionTransformer(rolling)
-    # num_pl = Pipeline(
-    #     steps=[
-    #         ("numeric_transform", type_transformer),
-    #         # ('roll_transform', rolling_transformer),
-    #         ("imputer", SimpleImputer(strategy="most_frequent")),
-    #     ],
-    # )
+    # 800,35,17
     scaler = MinMaxScaler()
-    # preprocessor = ColumnTransformer(transformers=[("num", num_pl, lst_cols)])
-    # res = preprocessor.fit_transform(df)
-    # res = np.array(res)
-    n_ = df.shape[1]
-    res = np.reshape(df, (-1, 7))
-    res = np.where(res <= threshold, res, threshold)
+    # import pdb; pdb.set_trace()
+    (a,b,c) =  df.shape
+    res = np.reshape(df, (-1, c))
+
+    # res = np.where(res <= threshold, res, threshold)
     res = scaler.fit_transform(res)
-    res = np.reshape(res, (-1, n_,7))
+    res = np.reshape(res, (-1, b,c))
     # trans_df = pd.DataFrame(res, columns=lst_cols, index=df.index)
     # trans_df[["Year", "Month", "Day", "Hour"]] = df[["Year", "Month", "Day", "Hour"]]
     return res, scaler
@@ -151,6 +114,30 @@ def location_arr(file_path, res):
         loc = location_df[location_df['location'] == res[i]].to_numpy()[0,1:]
         list_location.append([loc[1],loc[0]])
     return np.array(list_location)
+
+def get_data_array(file_path):
+    columns = ['PM2.5','Hour','Month', 'AQI', 'PM10','Mean',  'CO', 'NO2', 'O3', 'SO2', 'prec',
+       'lrad', 'shum', 'pres', 'temp', 'wind', 'srad']
+    # columns = ['PM2.5','AQI','PM10','CO','O3','SO2','NO2']
+    location_df = pd.read_csv(file_path + "location.csv")
+    station = location_df['location'].values
+    location = location_df.values[:,1:]
+    location_ = location[:,[1,0]]
+    
+    list_arr = []
+    for i in station:
+        df = pd.read_csv(file_path  + f"{i}.csv")[columns]
+        # print(df.head())
+        df = df.fillna(method='ffill')
+        df = df.fillna(10)
+        arr = df.astype(float).values
+        arr = np.expand_dims(arr,axis=1)
+        list_arr.append(arr)
+    list_arr = np.concatenate(list_arr,axis=1)
+    # print(list_arr.shape)
+    return list_arr,location_,station
+
+from torchvision import transforms
 class AQDataSet(Dataset):
     def __init__(
         self,
@@ -161,7 +148,6 @@ class AQDataSet(Dataset):
         test_station=None,
         test=False,
         transform=None,
-        top_k=10,
         interpolate=False
     ) -> None:
         super().__init__()
@@ -171,13 +157,11 @@ class AQDataSet(Dataset):
         ), "tram test khong trong tram train"
         # self.list_cols_train = ["Station_{}".format(i) for i in list_train_station]
         self.list_cols_train_int = list_train_station
-        self.transform = transform
         self.input_len = input_dim
         self.test = test
         self.data_df = data_df
         self.location = location_df
-        self.top_k = top_k
-        self.interpolate = interpolate # neu interpolate thi tinh adj_matrix cho ca 28 tram roi swap row cua tram target xuong duoi cung
+        self.interpolate = interpolate
         # test data
         if self.test:
             test_station = int(test_station)
@@ -185,10 +169,7 @@ class AQDataSet(Dataset):
                 set(self.list_cols_train_int)
                 - set([random.choice(self.list_cols_train_int)])
             )
-            lst_cols_input_test = "Station_{}".format(
-                lst_cols_input_test_int
-            )  # trong 28 tram, bo random 1 tram de lam input cho test
-            self.X_test = data_df[:, lst_cols_input_test]
+            self.X_test = data_df[:, lst_cols_input_test_int]
             self.l_test = self.get_distance_matrix(
                 lst_cols_input_test_int, test_station
             )
@@ -198,7 +179,6 @@ class AQDataSet(Dataset):
 
     def get_distance(self, coords_1, coords_2):
         import geopy.distance
-
         return geopy.distance.geodesic(coords_1, coords_2).km
 
     def get_distance_matrix(self, list_col_train_int, target_station):
@@ -233,7 +213,7 @@ class AQDataSet(Dataset):
     def __getitem__(self, index: int):
         if self.test:
             x = self.X_test[index : index + self.input_len, :]
-            y = self.Y_test[index + self.input_len + self.output_len - 1]
+            y = self.Y_test[index + self.input_len + self.output_len - 1,0]
             G = self.G_test
             l = self.l_test
         else:
@@ -244,8 +224,6 @@ class AQDataSet(Dataset):
             lst_col_train_int = list(
                 set(self.list_cols_train_int) - set([picked_target_station_int])
             )
-            # picked_target_station = "Station_{}".format(picked_target_station_int)
-            # lst_col_train = ["Station_{}".format(i) for i in lst_col_train_int]
             x = self.data_df[
                 index : index + self.input_len , lst_col_train_int,:
             ]
@@ -264,7 +242,7 @@ class AQDataSet(Dataset):
             l = self.get_reverse_distance_matrix(
                 lst_col_train_int, picked_target_station_int
             )
-        sample = {"X": x, "Y": y, "G": np.array(G), "l": np.array(l)}
+        sample = {"X": x,"Y":np.array([y]), "G": np.array(G), "l":np.array(l)}
         return sample
 
     def __len__(self) -> int:
