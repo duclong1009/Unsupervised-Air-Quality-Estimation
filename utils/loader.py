@@ -144,6 +144,7 @@ class AQDataSet(Dataset):
         location_df,
         list_train_station,
         input_dim,
+        output_dim=1,
         test_station=None,
         test=False,
         transform=None,
@@ -157,6 +158,7 @@ class AQDataSet(Dataset):
         # self.list_cols_train = ["Station_{}".format(i) for i in list_train_station]
         self.list_cols_train_int = list_train_station
         self.input_len = input_dim
+        self.output_len = output_dim
         self.test = test
         self.data_df = data_df
         self.location = location_df
