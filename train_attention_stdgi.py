@@ -9,7 +9,7 @@ from tqdm.notebook import tqdm
 import matplotlib.pyplot as plt
 import pandas as pd
 from src.modules.train.test import cal_acc, test_atten_decoder_fn
-from utils.ultilities import config_seed, save_checkpoint, EarlyStopping
+from utils.ultilities import config_seed, load_model, save_checkpoint, EarlyStopping
 from utils.loader import  get_data_array, preprocess_pipeline, AQDataSet
 from torch.utils.data import DataLoader
 from src.models.stdgi import Attention_STDGI, InterpolateAttention_STDGI
@@ -32,7 +32,7 @@ def parse_args():
     parser.add_argument("--patience", default=3, type=int)
 
     parser.add_argument("--lr_stdgi", default=5e-3, type=float)
-    parser.add_argument("--num_epochs_stdgi", default=1, type=int)
+    parser.add_argument("--num_epochs_stdgi", default=20, type=int)
     parser.add_argument("--output_stdgi", default=60, type=int)
     parser.add_argument(
         "--checkpoint_stdgi", default="./out/checkpoint/stdgi.pt", type=str
@@ -43,7 +43,7 @@ def parse_args():
     parser.add_argument("--dis_hid", default=6, type=int)
     parser.add_argument("--act_fn", default="relu", type=str)
     parser.add_argument("--delta_stdgi", default=0, type=float)
-    parser.add_argument("--num_epochs_decoder", default=1, type=int)
+    parser.add_argument("--num_epochs_decoder", default=20, type=int)
     parser.add_argument("--lr_decoder", default=5e-3, type=float)
     parser.add_argument(
         "--checkpoint_decoder", default="./out/checkpoint/decoder.pt", type=str
@@ -54,8 +54,8 @@ def parse_args():
     parser.add_argument("--fc_hid_dim", default=64, type=int)
     parser.add_argument("--rnn_type", default="LSTM", type=str)
     parser.add_argument("--n_layers_rnn", default=1, type=int)
-    parser.add_argument("--interpolate", default=True, type=bool)
-    parser.add_argument("--attention_decoder", default=True,type=bool)
+    parser.add_argument("--interpolate", default=False, type=bool)
+    parser.add_argument("--attention_decoder", default=False,type=bool)
     return parser.parse_args()
 
 from utils.loader import comb_df
@@ -72,21 +72,14 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s :: %(levelname)s :: %(message)s')
     args = parse_args()
     config_seed(args.seed)
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    device = torch.device("cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # device = torch.device("cpu")
     file_path = "./data/Beijing2/"
     comb_arr,location_, station = get_data_array(file_path)
     trans_df, scaler = preprocess_pipeline(comb_arr)
 
-    # file_path = "./data/Beijing/"
-    # # Preprocess and Load data
-    # res,res_rev,df = get_columns(file_path)
-    # comb_arr,b = comb_df(file_path,df,res)
-    # location_ = location_arr(file_path,res)
-    # trans_df, scaler = preprocess_pipeline(comb_arr)
-
     train_dataset = AQDataSet(
-        data_df=trans_df[:200],
+        data_df=trans_df[:1000],
         location_df=location_,
         list_train_station= args.train_station,
         input_dim=args.sequence_length,
@@ -115,6 +108,7 @@ if __name__ == "__main__":
             en_hid2=args.en_hid2,
             dis_hid=args.dis_hid,
         ).to(device)
+
     l2_coef = 0.0
     mse_loss = nn.MSELoss()
     bce_loss = nn.BCELoss()
@@ -146,7 +140,7 @@ if __name__ == "__main__":
             )
             early_stopping_stdgi(loss, stdgi)
             logging.info("Epochs/Loss: {}/ {}".format(i, loss))
-
+    load_model(stdgi,args.checkpoint_stdgi)
     if not args.interpolate:
         decoder = Decoder(
             args.input_dim + args.output_stdgi,
@@ -179,6 +173,7 @@ if __name__ == "__main__":
                 fc_hid_dim=args.fc_hid_dim,                                   
             ).to(device)
 
+    
     optimizer_decoder = torch.optim.Adam(
         decoder.parameters(), lr=args.lr_decoder, weight_decay=l2_coef
     )
@@ -200,31 +195,32 @@ if __name__ == "__main__":
             early_stopping_decoder(epoch_loss, decoder)
             print("Epochs/Loss: {}/ {}".format(i, epoch_loss))
         train_decoder_loss.append(epoch_loss)
-
+    load_model(decoder,args.checkpoint_decoder)
     #test
-    # list_acc = []
-    # predict = {}
-    # for test_station in args.test_station:
-    #     test_dataset = AQDataSet(
-    #         data_df=comb_arr[:50],
-    #         location_df=location_,
-    #         list_train_station=[i for  i in range(20)],
-    #         test_station=test_station,
-    #         test = True,
-    #         input_dim=args.sequence_length,
-    #         # output_dim=args.output_dim,
-    #         interpolate=args.interpolate
-    #     )
-    #     test_dataloader = DataLoader(
-    #         test_dataset, batch_size=args.batch_size, shuffle=True
-    #     )
-
-    #     list_prd,list_grt = test_atten_decoder_fn(stdgi,decoder,test_dataloader,device, args.interpolate)
-    #     mae,mse,mape,rmse,r2,corr = cal_acc(list_prd,list_grt)
-    #     list_acc.append([test_station,mae,mse,mape,rmse,r2,corr])
-    #     predict[test_station] = {"grt":list_grt,"prd":list_prd}
-    #     print("Test Accuracy: {}".format(mae,mse,corr))
-    # df = pd.DataFrame(np.array(list_acc),columns=['STATION','MAE','MSE','R2','CORR'])
-    # df.to_csv(args.output_path + "test/acc.csv",index=False)
-    # with open(args.output_path + "test/predict.json", "w") as f:
-    #     json.dump(predict, f)
+    list_acc = []
+    predict = {}
+    for test_station in range(20,35,1):
+        test_dataset = AQDataSet(
+            data_df=trans_df[:1000],
+            location_df=location_,
+            list_train_station=[i for  i in range(20)],
+            test_station=test_station,
+            test = True,
+            input_dim=args.sequence_length,
+            # output_dim=args.output_dim,
+            interpolate=args.interpolate
+        )
+        test_dataloader = DataLoader(
+            test_dataset, batch_size=args.batch_size, shuffle=False
+        )
+        # breakpoint()
+        list_prd,list_grt = test_atten_decoder_fn(stdgi,decoder,test_dataloader,device, args.interpolate,scaler)
+        mae,mse,mape,rmse,r2,corr = cal_acc(list_prd,list_grt)
+        # breakpoint()
+        list_acc.append([test_station,mae,mse,mape,rmse,r2,corr])
+        predict[test_station] = {"grt":list_grt,"prd":list_prd}
+        print("Test Accuracy: {}".format(mae,mse,corr))
+    df = pd.DataFrame(np.array(list_acc),columns=['STATION','MAE','MSE','MAPE','RMSE','R2','CORR'])
+    df.to_csv(args.output_path + "test/acc.csv",index=False)
+    with open(args.output_path + "test/predict.json", "w") as f:
+        json.dump(predict, f)

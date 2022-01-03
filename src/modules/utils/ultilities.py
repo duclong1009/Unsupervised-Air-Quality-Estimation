@@ -39,4 +39,4 @@ if __name__ == "__main__":
     lst_data = np.array([1,2,3,4,100])
     lst_rev_distance = np.array([0.1,0.2,0.3,0.2,0.2])
 
-    print(get_interpolate(lst_data, lst_rev_distance))
+    # print(get_interpolate(lst_data, lst_rev_distance))
