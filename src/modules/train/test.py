@@ -48,6 +48,6 @@ def test_atten_decoder_fn(
                 list_grt.append(y_grt)
     list_grt = (np.array(list_grt) + 1) / 2 * (a_max - a_min) + a_min
     list_prd = (np.array(list_prd) + 1) / 2 * (a_max - a_min) + a_min
-    list_grt_ = [int(i) for i in list_grt]
-    list_prd_ = [int(i) for i in list_prd]
+    list_grt_ = [float(i) for i in list_grt]
+    list_prd_ = [float(i) for i in list_prd]
     return list_prd_, list_grt_
