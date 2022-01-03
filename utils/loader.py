@@ -135,7 +135,7 @@ def get_data_array(file_path):
         list_arr.append(arr)
     list_arr = np.concatenate(list_arr,axis=1)
     # print(list_arr.shape)
-    return list_arr,location_,station
+    return list_arr,location_,station, columns
 
 # from torchvision import transforms
 class AQDataSet(Dataset):
@@ -264,7 +264,6 @@ if __name__ == "__main__":
         location_df=location,
         list_train_station=[i for i in range(28)],
         input_dim=12,
-        output_dim=1,
         interpolate=True
     )
     train_dataloader = DataLoader(

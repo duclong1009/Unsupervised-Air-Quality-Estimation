@@ -88,10 +88,11 @@ def train_stdgi_with_trick_fn(
         epoch_loss += loss
     return epoch_loss / len(dataloader)
 
-
+import wandb
 def train_atten_stdgi(
     stdgi, dataloader, optim_e, optim_d, criterion, device, n_steps=2, interpolate=False
 ):
+    wandb.watch(stdgi, criterion, log="all", log_freq=100)
     '''
     Sử dụng train Attention_STDGI model 
     '''
@@ -140,8 +141,9 @@ def train_atten_stdgi(
         optim_e.step()
         epoch_loss += e_loss
     return epoch_loss / len(dataloader)
-
+from src.layers.loss import linex_loss
 def train_atten_decoder_fn(stdgi, decoder, dataloader, criterion, optimizer, device, interpolate=False):
+    wandb.watch(decoder, criterion, log="all", log_freq=100)
     decoder.train()
     epoch_loss = 0
     for data in tqdm(dataloader):
@@ -158,7 +160,7 @@ def train_atten_decoder_fn(stdgi, decoder, dataloader, criterion, optimizer, dev
             else:
                 h, enc_hidd = stdgi.embedd(x, G.unsqueeze(0), l)
                 y_prd = decoder(x[-1].unsqueeze(0), h, enc_hidd, l)
-            batch_loss += criterion(torch.squeeze(y_prd), torch.squeeze(y_grt))
+            batch_loss += linex_loss(torch.squeeze(y_prd), torch.squeeze(y_grt),-0.1)
         batch_loss = batch_loss / data["X"].shape[0]
         batch_loss.backward()
         optimizer.step()

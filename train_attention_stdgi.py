@@ -25,6 +25,11 @@ def parse_args():
         default=[i for i in range(20)],
         type=list,
     )
+    parser.add_argument(
+        "--test_station",
+        default=[i for i in range(20,35,1)],
+        type=list,
+    )
     parser.add_argument("--input_dim", default=17, type=int)
     parser.add_argument("--output_dim", default=1, type=int)
     parser.add_argument("--sequence_length", default=12, type=int)
@@ -61,7 +66,7 @@ def parse_args():
 from utils.loader import comb_df
 from utils.loader import get_columns,AQDataSet,location_arr
 import logging
-
+import wandb
 import json 
 # def init_weights(m):
 #     if isinstance(m, nn.Linear):
@@ -71,12 +76,17 @@ import json
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s :: %(levelname)s :: %(message)s')
     args = parse_args()
+
+    try: config = vars(args)
+    except IOError as msg: args.error(str(msg))
+
     config_seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # device = torch.device("cpu")
     file_path = "./data/Beijing2/"
-    comb_arr,location_, station = get_data_array(file_path)
+    comb_arr,location_, station,features_name = get_data_array(file_path)
     trans_df, scaler = preprocess_pipeline(comb_arr)
+    config["features"] = features_name
 
     train_dataset = AQDataSet(
         data_df=trans_df[:1000],
@@ -90,7 +100,8 @@ if __name__ == "__main__":
     train_dataloader = DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=True
     )
-
+    config["loss"] = 'linex_loss'
+    wandb.init(project="pm2.5", name="train_linex_loss_-0.1", config=config)
     # Model Stdgi
     if not args.interpolate:
         stdgi = Attention_STDGI(
@@ -124,7 +135,7 @@ if __name__ == "__main__":
         delta=args.delta_stdgi,
         path=args.checkpoint_stdgi,
     )
-    logging.info(f"Training stdgi ||  interpolate {args.interpolate} || epochs {args.num_epochs_stdgi} || lr {args.lr_stdgi}")
+    logging.info(f"Training stdgi ||  interpolate {args.interpolate} || attention decoder {args.attention_decoder} || epochs {args.num_epochs_stdgi} || lr {args.lr_stdgi}")
     train_stdgi_loss = []
     # stdgi.apply(init_weights)
     for i in range(args.num_epochs_stdgi):
@@ -139,8 +150,11 @@ if __name__ == "__main__":
                 interpolate=args.interpolate
             )
             early_stopping_stdgi(loss, stdgi)
+            wandb.log({"stdgi_loss": loss})
             logging.info("Epochs/Loss: {}/ {}".format(i, loss))
+    wandb.run.summary["best_loss_stdgi"] = early_stopping_stdgi.best_score
     load_model(stdgi,args.checkpoint_stdgi)
+    
     if not args.interpolate:
         decoder = Decoder(
             args.input_dim + args.output_stdgi,
@@ -172,13 +186,10 @@ if __name__ == "__main__":
                 cnn_hid_dim=args.cnn_hid_dim,
                 fc_hid_dim=args.fc_hid_dim,                                   
             ).to(device)
-
     
     optimizer_decoder = torch.optim.Adam(
         decoder.parameters(), lr=args.lr_decoder, weight_decay=l2_coef
     )
-    
-    train_decoder_loss = []
 
     early_stopping_decoder = EarlyStopping(
         patience=args.patience,
@@ -194,12 +205,13 @@ if __name__ == "__main__":
             )
             early_stopping_decoder(epoch_loss, decoder)
             print("Epochs/Loss: {}/ {}".format(i, epoch_loss))
-        train_decoder_loss.append(epoch_loss)
+            wandb.log({"decoder_loss": epoch_loss})
     load_model(decoder,args.checkpoint_decoder)
+    wandb.run.summary["best_loss_decoder"] = early_stopping_decoder.best_score
     #test
     list_acc = []
     predict = {}
-    for test_station in range(20,35,1):
+    for test_station in args.test_station:
         test_dataset = AQDataSet(
             data_df=trans_df[:1000],
             location_df=location_,
@@ -220,7 +232,26 @@ if __name__ == "__main__":
         list_acc.append([test_station,mae,mse,mape,rmse,r2,corr])
         predict[test_station] = {"grt":list_grt,"prd":list_prd}
         print("Test Accuracy: {}".format(mae,mse,corr))
+        wandb.log({f"Station_{test_station}": list_prd})
     df = pd.DataFrame(np.array(list_acc),columns=['STATION','MAE','MSE','MAPE','RMSE','R2','CORR'])
-    df.to_csv(args.output_path + "test/acc.csv",index=False)
+    wandb.log({"test_acc": df})
+
+    for test_station in args.test_station:
+        prd = predict[test_station]['prd']
+        grt  = predict[test_station]['grt']
+        x = 800
+        fig, ax = plt.subplots(figsize=(20,8))
+        # ax.figure(figsize=(20,8))
+        ax.plot(np.arange(x),grt[:x], label='grt')
+        ax.plot(np.arange(x),prd[:x],label='prd')
+        ax.legend()
+        ax.set_title(f"Tram_{test_station}")
+        wandb.log({"Tram_{}".format(test_station): wandb.Image(fig)})
+
+    # df.to_csv(args.output_path + "test/acc.csv",index=False)
     with open(args.output_path + "test/predict.json", "w") as f:
         json.dump(predict, f)
+    # torch.onnx.export(stdgi,train_dataset[0]["X"],"STDGI.onnx",export_params=True)
+    # wandb.save("STDGI.onnx")
+    # torch.onnx.export(decoder,train_dataset[0]["X"],"DECODER.onnx",export_params=True)
+    # torch.save("DECODER.onnx")
