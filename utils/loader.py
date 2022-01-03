@@ -137,10 +137,7 @@ def get_data_array(file_path):
     # print(list_arr.shape)
     return list_arr,location_,station
 
-<<<<<<< HEAD
-=======
 # from torchvision import transforms
->>>>>>> 46f89cf86fa06c706a88188367451ff1ad7c5f67
 class AQDataSet(Dataset):
     def __init__(
         self,
@@ -148,7 +145,6 @@ class AQDataSet(Dataset):
         location_df,
         list_train_station,
         input_dim,
-        output_dim=1,
         test_station=None,
         test=False,
         interpolate=False
@@ -161,7 +157,6 @@ class AQDataSet(Dataset):
         # self.list_cols_train = ["Station_{}".format(i) for i in list_train_station]
         self.list_cols_train_int = list_train_station
         self.input_len = input_dim
-        self.output_len = output_dim
         self.test = test
         self.data_df = data_df
         self.location = location_df
@@ -269,7 +264,6 @@ if __name__ == "__main__":
         location_df=location,
         list_train_station=[i for i in range(28)],
         input_dim=12,
-        output_dim=1,
         interpolate=True
     )
     train_dataloader = DataLoader(

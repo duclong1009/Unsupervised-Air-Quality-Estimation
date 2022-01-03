@@ -200,36 +200,6 @@ if __name__ == "__main__":
             early_stopping_decoder(epoch_loss, decoder)
             print("Epochs/Loss: {}/ {}".format(i, epoch_loss))
         train_decoder_loss.append(epoch_loss)
-<<<<<<< HEAD
-
-    # test
-    # list_acc = []
-    # predict = {}
-    # for test_station in args.test_station:
-    #     test_dataset = AQDataSet(
-    #         data_df=comb_arr[:50],
-    #         location_df=location_,
-    #         list_train_station=args.train_station,
-    #         test_station=test_station,
-    #         test = True,
-    #         input_dim=args.sequence_length,
-    #         # output_dim=args.output_dim,
-    #         interpolate=args.interpolate
-    #     )
-    #     test_dataloader = DataLoader(
-    #         test_dataset, batch_size=args.batch_size, shuffle=True
-    #     )
-
-    #     list_prd,list_grt = test_atten_decoder_fn(stdgi,decoder,test_dataloader,device, args.interpolate)
-    #     mae,mse,mape,rmse,r2,corr = cal_acc(list_prd,list_grt)
-    #     list_acc.append([test_station,mae,mse,mape,rmse,r2,corr])
-    #     predict[test_station] = {"grt":list_grt,"prd":list_prd}
-    #     print("Test Accuracy: {}".format(mae,mse,corr))
-    # df = pd.DataFrame(np.array(list_acc),columns=['STATION','MAE','MSE','R2','CORR'])
-    # df.to_csv(args.output_path + "test/acc.csv",index=False)
-    # with open(args.output_path + "test/predict.json", "w") as f:
-    #     json.dump(predict, f)
-=======
     load_model(decoder,args.checkpoint_decoder)
     #test
     list_acc = []
@@ -259,4 +229,3 @@ if __name__ == "__main__":
     df.to_csv(args.output_path + "test/acc.csv",index=False)
     with open(args.output_path + "test/predict.json", "w") as f:
         json.dump(predict, f)
->>>>>>> 46f89cf86fa06c706a88188367451ff1ad7c5f67

@@ -25,6 +25,11 @@ def parse_args():
         default=[i for i in range(20)],
         type=list,
     )
+    parser.add_argument(
+        "--test_station",
+        default=[i for i in range(20,35,1)],
+        type=list,
+    )
     parser.add_argument("--input_dim", default=17, type=int)
     parser.add_argument("--output_dim", default=1, type=int)
     parser.add_argument("--sequence_length", default=12, type=int)
@@ -199,7 +204,7 @@ if __name__ == "__main__":
     #test
     list_acc = []
     predict = {}
-    for test_station in range(20,35,1):
+    for test_station in args.test_station:
         test_dataset = AQDataSet(
             data_df=trans_df[:1000],
             location_df=location_,
