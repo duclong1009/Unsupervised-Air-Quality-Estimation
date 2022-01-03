@@ -1,0 +1,27 @@
+{
+    "os": "Linux-5.4.0-91-generic-x86_64-with-glibc2.10",
+    "python": "3.8.12",
+    "heartbeatAt": "2022-01-03T08:45:59.226715",
+    "startedAt": "2022-01-03T08:45:57.945906",
+    "docker": null,
+    "gpu": "NVIDIA GeForce RTX 3090",
+    "gpu_count": 1,
+    "cpu_count": 40,
+    "cuda": null,
+    "args": [
+        "--input_dim",
+        "9"
+    ],
+    "state": "running",
+    "program": "train_attention_stdgi.py",
+    "codePath": "train_attention_stdgi.py",
+    "git": {
+        "remote": "https://github.com/vuviethung1998/stdgi.git",
+        "commit": "467bb833c5edd6370abe78269785d9a235371303"
+    },
+    "email": "duclong10092000@gmail.com",
+    "root": "/home/aiotlabws/Workspace/Project/hungvv/stdgi",
+    "host": "aiotlabws",
+    "username": "aiotlabws",
+    "executable": "/home/aiotlabws/Workspace/Env/anaconda3/envs/longnd/bin/python"
+}
