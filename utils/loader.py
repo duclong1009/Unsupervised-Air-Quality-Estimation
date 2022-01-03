@@ -68,18 +68,18 @@ def rolling(x):
 
 from sklearn.impute import KNNImputer, SimpleImputer
 
-def preprocess_pipeline(df, threshold=50):
+def preprocess_pipeline(df):
     # 800,35,17
-    scaler = MinMaxScaler()
+    scaler = MinMaxScaler((-1,1))
     # import pdb; pdb.set_trace()
+    # breakpoint()
     (a,b,c) =  df.shape
     res = np.reshape(df, (-1, c))
-
-    # res = np.where(res <= threshold, res, threshold)
+    for i in range(c):
+        threshold = np.percentile(res[:,i], 95)
+        res[:,i] = np.where(res[:,i] > threshold, threshold, res[:,i])
     res = scaler.fit_transform(res)
     res = np.reshape(res, (-1, b,c))
-    # trans_df = pd.DataFrame(res, columns=lst_cols, index=df.index)
-    # trans_df[["Year", "Month", "Day", "Hour"]] = df[["Year", "Month", "Day", "Hour"]]
     return res, scaler
 
 def get_list_file(folder_path):
@@ -116,9 +116,9 @@ def location_arr(file_path, res):
     return np.array(list_location)
 
 def get_data_array(file_path):
-    columns = ['PM2.5','Hour','Month', 'AQI', 'PM10','Mean',  'CO', 'NO2', 'O3', 'SO2', 'prec',
-       'lrad', 'shum', 'pres', 'temp', 'wind', 'srad']
-    # columns = ['PM2.5','AQI','PM10','CO','O3','SO2','NO2']
+    # columns = ['PM2.5','Hour','Month', 'AQI', 'PM10','Mean',  'CO', 'NO2', 'O3', 'SO2', 'prec',
+    #    'lrad', 'shum', 'pres', 'temp', 'wind', 'srad']
+    columns = ['PM2.5','AQI','PM10','CO','O3','SO2','NO2',"Change","wind"]
     location_df = pd.read_csv(file_path + "location.csv")
     station = location_df['location'].values
     location = location_df.values[:,1:]
@@ -137,6 +137,10 @@ def get_data_array(file_path):
     # print(list_arr.shape)
     return list_arr,location_,station
 
+<<<<<<< HEAD
+=======
+# from torchvision import transforms
+>>>>>>> 46f89cf86fa06c706a88188367451ff1ad7c5f67
 class AQDataSet(Dataset):
     def __init__(
         self,
@@ -147,7 +151,6 @@ class AQDataSet(Dataset):
         output_dim=1,
         test_station=None,
         test=False,
-        transform=None,
         interpolate=False
     ) -> None:
         super().__init__()
@@ -168,7 +171,7 @@ class AQDataSet(Dataset):
             test_station = int(test_station)
             lst_cols_input_test_int = list(
                 set(self.list_cols_train_int)
-                - set([random.choice(self.list_cols_train_int)])
+                - set([self.list_cols_train_int[-1]])
             )
             self.X_test = data_df[:, lst_cols_input_test_int]
             self.l_test = self.get_distance_matrix(
@@ -214,7 +217,7 @@ class AQDataSet(Dataset):
     def __getitem__(self, index: int):
         if self.test:
             x = self.X_test[index : index + self.input_len, :]
-            y = self.Y_test[index + self.input_len + self.output_len - 1,0]
+            y = self.Y_test[index + self.input_len - 1,0]
             G = self.G_test
             l = self.l_test
         else:
@@ -240,6 +243,7 @@ class AQDataSet(Dataset):
                 new_list_col_train_int = lst_col_train_int.copy()
                 new_list_col_train_int.append(picked_target_station_int)
                 G = self.get_adjacency_matrix(new_list_col_train_int, picked_target_station_int)
+            
             l = self.get_reverse_distance_matrix(
                 lst_col_train_int, picked_target_station_int
             )

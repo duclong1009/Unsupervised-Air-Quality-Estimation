@@ -51,7 +51,7 @@ class Decoder(nn.Module):
         ret = self.linear(ret) # (128, 1)
         ret = self.relu(ret) # (128,64)
         ret = self.linear2(ret) # (64,1)
-        ret = self.relu(ret) # (1)
+        # ret = self.relu(ret) # (1)
         return ret
 class InterpolateDecoder(nn.Module):
     def __init__(
@@ -101,7 +101,7 @@ class InterpolateDecoder(nn.Module):
         ret = self.linear(ret) # (128, 1)
         ret = self.relu(ret) # (128,64)
         ret = self.linear2(ret) # (64,1)
-        ret = self.relu(ret) # (1)
+        # ret = self.relu(ret) # (1)
         return ret 
 
 def get_interpolate(inp_feat, lst_rev_distance):  # inp: 12, 27, 6  lst_rev_distance: 1, 27
@@ -193,7 +193,7 @@ class InterpolateAttentionDecoder(nn.Module):
         ret = self.linear(ret) # (128, 1)
         ret = self.relu(ret) # (128,64)
         ret = self.linear2(ret) # (64,1)
-        ret = self.relu(ret) # (1)
+        # ret = self.relu(ret) # (1)
         return ret 
 
 
