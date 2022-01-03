@@ -44,7 +44,10 @@ class Decoder(nn.Module):
         # hid_state = torch.zeros(1, batch_size, self.in_ft).to(DEVICE)
         output, hid_state = self.rnn(x_) # hidden_state = (seq_len,60, 27)
         x_ = output[-1] # (1, 27, 60)
-        x_ = x_.reshape(1, x_.shape[1], x_.shape[0]) # output = (1, 60, 27)
+        x_ = torch.unsqueeze(x_,0) # (1, 27, 60)
+        # breakpoint()
+        x_ = x_.permute(0,2,1)
+        # x_ = x_.reshape(1, x_.shape[1], x_.shape[0]) # output = (1, 60, 27)
         ret = self.cnn(x_) # (input_size, hidden_dim) = (60, 128)
         ret = torch.bmm(ret, l_) # ret= (1, 128, 27) * (1, 27, 1) = (1, 128, 1)
         ret = ret.reshape(ret.shape[0], -1) # output =  
@@ -53,6 +56,7 @@ class Decoder(nn.Module):
         ret = self.linear2(ret) # (64,1)
         # ret = self.relu(ret) # (1)
         return ret
+
 class InterpolateDecoder(nn.Module):
     def __init__(
         self, in_ft, out_ft, n_layers_rnn=1, rnn="GRU", cnn_hid_dim=128, fc_hid_dim=64
@@ -93,7 +97,9 @@ class InterpolateDecoder(nn.Module):
         # hid_state = torch.zeros(1, batch_size, self.in_ft).to(DEVICE)
         output, hid_state = self.rnn(x_) # output = (seq_len, 28, 60)
         x_ = output[-1] # (1, 28, 60)
-        x_ = x_.reshape(1, x_.shape[1], x_.shape[0]) # output = (1, 60, 28)
+        x_ = torch.unsqueeze(x_,0)
+        x_ = x_.permute(0,2,1)
+        # x_ = x_.reshape(1, x_.shape[1], x_.shape[0]) # output = (1, 60, 28)
         ret = self.cnn(x_) # CNN: (input_size, hidden_dim) = (60, 128), ret = (1, 128, 28)
         ret = ret[:,:,-1] # size = (1, 128,1)
         
@@ -185,7 +191,9 @@ class InterpolateAttentionDecoder(nn.Module):
         output, hid_state = self.rnn(x_) # output = (seq_len, 28, 60)
 
         x_ = output[-1] # (1, 28, 60)
-        x_ = x_.reshape(1, x_.shape[1], x_.shape[0]) # output = (1, 60, 28)
+        x_ = torch.unsqueeze(x_,0) # (28, 60) -> (1, 28, 60)
+        x_ = x_.permute(0,2,1)
+        # x_ = x_.reshape(1, x_.shape[1], x_.shape[0]) # output = (1, 60, 28)
         ret = self.cnn(x_) # CNN: (input_size, hidden_dim) = (60, 128), ret = (1, 128, 28)
         ret = ret[:,:,-1] # size = (1, 128,1)
         

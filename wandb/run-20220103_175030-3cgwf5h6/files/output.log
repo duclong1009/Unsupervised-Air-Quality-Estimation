@@ -1,0 +1,40 @@
+2022-01-03 17:50:39,282 :: INFO :: Training stdgi ||  interpolate False || attention decoder False || epochs 1 || lr 0.005
+
+
+  6%|███████████▏                                                                                                                                                                  | 2/31 [00:08<02:03,  4.27s/it]
+Traceback (most recent call last):
+  File "train_attention_stdgi.py", line 143, in <module>
+    loss = train_atten_stdgi(
+  File "/home/aiotlabws/Workspace/Project/hungvv/stdgi/src/modules/train/train.py", line 102, in train_atten_stdgi
+    for data in tqdm(dataloader):
+  File "/home/aiotlabws/Workspace/Env/anaconda3/envs/longnd/lib/python3.8/site-packages/tqdm/std.py", line 1180, in __iter__
+    for obj in iterable:
+  File "/home/aiotlabws/Workspace/Env/anaconda3/envs/longnd/lib/python3.8/site-packages/torch/utils/data/dataloader.py", line 521, in __next__
+    data = self._next_data()
+  File "/home/aiotlabws/Workspace/Env/anaconda3/envs/longnd/lib/python3.8/site-packages/torch/utils/data/dataloader.py", line 561, in _next_data
+    data = self._dataset_fetcher.fetch(index)  # may raise StopIteration
+  File "/home/aiotlabws/Workspace/Env/anaconda3/envs/longnd/lib/python3.8/site-packages/torch/utils/data/_utils/fetch.py", line 49, in fetch
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+  File "/home/aiotlabws/Workspace/Env/anaconda3/envs/longnd/lib/python3.8/site-packages/torch/utils/data/_utils/fetch.py", line 49, in <listcomp>
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+  File "/home/aiotlabws/Workspace/Project/hungvv/stdgi/utils/loader.py", line 236, in __getitem__
+    G = self.get_adjacency_matrix(lst_col_train_int, picked_target_station_int)
+  File "/home/aiotlabws/Workspace/Project/hungvv/stdgi/utils/loader.py", line 202, in get_adjacency_matrix
+    distance_matrix = self.get_distance_matrix(list_col_train_int, i)
+  File "/home/aiotlabws/Workspace/Project/hungvv/stdgi/utils/loader.py", line 188, in get_distance_matrix
+    self.get_distance(self.location[i], self.location[target_station])
+  File "/home/aiotlabws/Workspace/Project/hungvv/stdgi/utils/loader.py", line 181, in get_distance
+    return geopy.distance.geodesic(coords_1, coords_2).km
+  File "/home/aiotlabws/Workspace/Env/anaconda3/envs/longnd/lib/python3.8/site-packages/geopy/distance.py", line 522, in __init__
+    super().__init__(*args, **kwargs)
+  File "/home/aiotlabws/Workspace/Env/anaconda3/envs/longnd/lib/python3.8/site-packages/geopy/distance.py", line 276, in __init__
+    kilometers += self.measure(a, b)
+  File "/home/aiotlabws/Workspace/Env/anaconda3/envs/longnd/lib/python3.8/site-packages/geopy/distance.py", line 548, in measure
+    s12 = self.geod.Inverse(lat1, lon1, lat2, lon2,
+  File "/home/aiotlabws/Workspace/Env/anaconda3/envs/longnd/lib/python3.8/site-packages/geographiclib/geodesic.py", line 1036, in Inverse
+    a12, s12, salp1,calp1, salp2,calp2, m12, M12, M21, S12 = self._GenInverse(
+  File "/home/aiotlabws/Workspace/Env/anaconda3/envs/longnd/lib/python3.8/site-packages/geographiclib/geodesic.py", line 882, in _GenInverse
+    eps, domg12, dv) = self._Lambda12(
+  File "/home/aiotlabws/Workspace/Env/anaconda3/envs/longnd/lib/python3.8/site-packages/geographiclib/geodesic.py", line 687, in _Lambda12
+    lam12 = eta + domg12
+KeyboardInterrupt

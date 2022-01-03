@@ -27,7 +27,7 @@ def parse_args():
     )
     parser.add_argument(
         "--test_station",
-        default=[i for i in range(21,30)],
+        default=[i for i in range(20,35,1)],
         type=list,
     )
     parser.add_argument("--input_dim", default=17, type=int)
@@ -100,8 +100,8 @@ if __name__ == "__main__":
     train_dataloader = DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=True
     )
-    config["loss"] = 'mse'
-    wandb.init(project="pm2.5", name="stdgi_attention", config=config)
+    config["loss"] = 'linex_loss'
+    wandb.init(project="pm2.5", name="train_linex_loss_-0.1", config=config)
     # Model Stdgi
     if not args.interpolate:
         stdgi = Attention_STDGI(
@@ -211,7 +211,7 @@ if __name__ == "__main__":
     #test
     list_acc = []
     predict = {}
-    for test_station in range(20,21,1):
+    for test_station in args.test_station:
         test_dataset = AQDataSet(
             data_df=trans_df[:1000],
             location_df=location_,
@@ -236,18 +236,18 @@ if __name__ == "__main__":
     df = pd.DataFrame(np.array(list_acc),columns=['STATION','MAE','MSE','MAPE','RMSE','R2','CORR'])
     wandb.log({"test_acc": df})
 
-    for i in range(20,35,1):
-        prd = predict[station]['prd']
-        grt  = predict[station]['grt']
+    for test_station in args.test_station:
+        prd = predict[test_station]['prd']
+        grt  = predict[test_station]['grt']
         x = 800
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(20,8))
         # ax.figure(figsize=(20,8))
         ax.plot(np.arange(x),grt[:x], label='grt')
         ax.plot(np.arange(x),prd[:x],label='prd')
         ax.legend()
-        ax.set_title(f"Tram_{i}")
-        wandb.log({"Tram_{}".format(i): ax})
-        
+        ax.set_title(f"Tram_{test_station}")
+        wandb.log({"Tram_{}".format(test_station): wandb.Image(fig)})
+
     # df.to_csv(args.output_path + "test/acc.csv",index=False)
     with open(args.output_path + "test/predict.json", "w") as f:
         json.dump(predict, f)

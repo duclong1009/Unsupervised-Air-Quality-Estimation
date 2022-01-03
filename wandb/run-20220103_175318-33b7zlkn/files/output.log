@@ -1,0 +1,96 @@
+2022-01-03 17:53:26,710 :: INFO :: Training stdgi ||  interpolate False || attention decoder False || epochs 1 || lr 0.005
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 97%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████▍     | 30/31 [01:34<00:03,  3.14s/it]
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 31/31 [01:37<00:00,  3.15s/it]
+2022-01-03 17:55:04,327 :: INFO :: Epochs/Loss: 0/ 0.625821053981781
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 31/31 [01:15<00:00,  2.45s/it]
+  6%|███████████▏                                                                                                                                                                  | 2/31 [00:00<00:03,  8.10it/s]
+Validation loss decreased (inf --> 0.000665).  Saving model ...
+
+
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 31/31 [00:03<00:00,  8.48it/s]
+Test Accuracy: 19.3422383994226
+[34m[1mwandb[39m[22m: [32m[41mERROR[39m[49m plotly is required to log interactive plots, install with: pip install plotly or convert the plot to an image with `wandb.Image(plt)`
+Traceback (most recent call last):
+  File "train_attention_stdgi.py", line 249, in <module>
+    wandb.log({"Tram_{}".format(i): ax})
+  File "/home/aiotlabws/Workspace/Env/anaconda3/envs/longnd/lib/python3.8/site-packages/wandb/sdk/wandb_run.py", line 1339, in log
+    self.history._row_add(data)
+  File "/home/aiotlabws/Workspace/Env/anaconda3/envs/longnd/lib/python3.8/site-packages/wandb/sdk/wandb_history.py", line 44, in _row_add
+    self._flush()
+  File "/home/aiotlabws/Workspace/Env/anaconda3/envs/longnd/lib/python3.8/site-packages/wandb/sdk/wandb_history.py", line 59, in _flush
+    self._callback(row=self._data, step=self._step)
+  File "/home/aiotlabws/Workspace/Env/anaconda3/envs/longnd/lib/python3.8/site-packages/wandb/sdk/wandb_run.py", line 1017, in _history_callback
+    self._backend.interface.publish_history(
+  File "/home/aiotlabws/Workspace/Env/anaconda3/envs/longnd/lib/python3.8/site-packages/wandb/sdk/interface/interface.py", line 496, in publish_history
+    data = data_types.history_dict_to_json(run, data, step=step)
+  File "/home/aiotlabws/Workspace/Env/anaconda3/envs/longnd/lib/python3.8/site-packages/wandb/sdk/data_types.py", line 2597, in history_dict_to_json
+    payload[key] = val_to_json(run, key, val, namespace=step)
+  File "/home/aiotlabws/Workspace/Env/anaconda3/envs/longnd/lib/python3.8/site-packages/wandb/sdk/data_types.py", line 2622, in val_to_json
+    val = Plotly.make_plot_media(val)
+  File "/home/aiotlabws/Workspace/Env/anaconda3/envs/longnd/lib/python3.8/site-packages/wandb/sdk/data_types.py", line 2547, in make_plot_media
+    val = util.matplotlib_to_plotly(val)
+  File "/home/aiotlabws/Workspace/Env/anaconda3/envs/longnd/lib/python3.8/site-packages/wandb/util.py", line 506, in matplotlib_to_plotly
+    tools = get_module(
+  File "/home/aiotlabws/Workspace/Env/anaconda3/envs/longnd/lib/python3.8/site-packages/wandb/util.py", line 189, in get_module
+    raise wandb.Error(required)
+wandb.errors.Error: plotly is required to log interactive plots, install with: pip install plotly or convert the plot to an image with `wandb.Image(plt)`
