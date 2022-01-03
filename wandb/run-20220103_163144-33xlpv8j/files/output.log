@@ -1,5 +1,0 @@
-2022-01-03 16:31:52,418 :: INFO :: Training stdgi ||  interpolate False || attention decoder False || epochs 0 || lr 0.005
-Traceback (most recent call last):
-  File "train_attention_stdgi.py", line 155, in <module>
-    wandb.run.summary["best_loss_stdgi"] = early_stopping_stdgi.best_loss
-AttributeError: 'EarlyStopping' object has no attribute 'best_loss'

@@ -1,5 +1,5 @@
 **/__pycache__/
 ./data/
-./out/**
-.wandb/**
+out/**
+wandb/**
 .vscode-upload.json
