@@ -37,7 +37,7 @@ def parse_args():
     parser.add_argument("--patience", default=3, type=int)
 
     parser.add_argument("--lr_stdgi", default=5e-3, type=float)
-    parser.add_argument("--num_epochs_stdgi", default=20, type=int)
+    parser.add_argument("--num_epochs_stdgi", default=1, type=int)
     parser.add_argument("--output_stdgi", default=60, type=int)
     parser.add_argument(
         "--checkpoint_stdgi", default="./out/checkpoint/stdgi.pt", type=str
@@ -48,7 +48,7 @@ def parse_args():
     parser.add_argument("--dis_hid", default=6, type=int)
     parser.add_argument("--act_fn", default="relu", type=str)
     parser.add_argument("--delta_stdgi", default=0, type=float)
-    parser.add_argument("--num_epochs_decoder", default=20, type=int)
+    parser.add_argument("--num_epochs_decoder", default=1, type=int)
     parser.add_argument("--lr_decoder", default=5e-3, type=float)
     parser.add_argument(
         "--checkpoint_decoder", default="./out/checkpoint/decoder.pt", type=str
@@ -59,7 +59,7 @@ def parse_args():
     parser.add_argument("--fc_hid_dim", default=64, type=int)
     parser.add_argument("--rnn_type", default="LSTM", type=str)
     parser.add_argument("--n_layers_rnn", default=1, type=int)
-    parser.add_argument("--interpolate", default=False, type=bool)
+    parser.add_argument("--interpolate", default=True, type=bool)
     parser.add_argument("--attention_decoder", default=False,type=bool)
     return parser.parse_args()
 
@@ -81,15 +81,15 @@ if __name__ == "__main__":
     except IOError as msg: args.error(str(msg))
 
     config_seed(args.seed)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # device = torch.device("cpu")
-    file_path = "./data/Beijing2/"
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")
+    file_path = "./data/BeijingSSA/"
     comb_arr,location_, station,features_name = get_data_array(file_path)
     trans_df, scaler = preprocess_pipeline(comb_arr)
     config["features"] = features_name
 
     train_dataset = AQDataSet(
-        data_df=trans_df[:1000],
+        data_df=trans_df[:200],
         location_df=location_,
         list_train_station= args.train_station,
         input_dim=args.sequence_length,
@@ -100,8 +100,8 @@ if __name__ == "__main__":
     train_dataloader = DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=True
     )
-    config["loss"] = 'linex_loss'
-    wandb.init(project="pm2.5", name="train_linex_loss_-0.1", config=config)
+    config["loss"] = 'mse'
+    wandb.init(project="Train_1000ts_PM2.5", name="train_linex_loss_-0.1_interpolate", config=config)
     # Model Stdgi
     if not args.interpolate:
         stdgi = Attention_STDGI(
@@ -200,6 +200,7 @@ if __name__ == "__main__":
     
     for i in range(args.num_epochs_decoder):
         if not early_stopping_decoder.early_stop:
+            
             epoch_loss = train_atten_decoder_fn(
                 stdgi, decoder, train_dataloader, mse_loss, optimizer_decoder, device, interpolate=args.interpolate
             )
@@ -235,7 +236,7 @@ if __name__ == "__main__":
         wandb.log({f"Station_{test_station}": list_prd})
     df = pd.DataFrame(np.array(list_acc),columns=['STATION','MAE','MSE','MAPE','RMSE','R2','CORR'])
     wandb.log({"test_acc": df})
-
+    df.to_csv(args.output_path + "test/acc.csv",index=False)
     for test_station in args.test_station:
         prd = predict[test_station]['prd']
         grt  = predict[test_station]['grt']
@@ -248,7 +249,7 @@ if __name__ == "__main__":
         ax.set_title(f"Tram_{test_station}")
         wandb.log({"Tram_{}".format(test_station): wandb.Image(fig)})
 
-    # df.to_csv(args.output_path + "test/acc.csv",index=False)
+    
     with open(args.output_path + "test/predict.json", "w") as f:
         json.dump(predict, f)
     # torch.onnx.export(stdgi,train_dataset[0]["X"],"STDGI.onnx",export_params=True)

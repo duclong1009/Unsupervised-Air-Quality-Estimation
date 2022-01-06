@@ -78,6 +78,8 @@ def preprocess_pipeline(df):
     for i in range(c):
         threshold = np.percentile(res[:,i], 95)
         res[:,i] = np.where(res[:,i] > threshold, threshold, res[:,i])
+    # res = np.reshape(res, (-1, b,c))
+    # breakpoint()
     res = scaler.fit_transform(res)
     res = np.reshape(res, (-1, b,c))
     return res, scaler
@@ -116,9 +118,9 @@ def location_arr(file_path, res):
     return np.array(list_location)
 
 def get_data_array(file_path):
-    # columns = ['PM2.5','Hour','Month', 'AQI', 'PM10','Mean',  'CO', 'NO2', 'O3', 'SO2', 'prec',
-    #    'lrad', 'shum', 'pres', 'temp', 'wind', 'srad']
-    columns = ['PM2.5','AQI','PM10','CO','O3','SO2','NO2',"Change","wind"]
+    columns = ['PM2.5','Hour','Month', 'AQI', 'PM10','Mean',  'CO', 'NO2', 'O3', 'SO2', 'prec',
+       'lrad', 'shum', 'pres', 'temp', 'wind', 'srad']
+    # columns = ['PM2.5','AQI','PM10','CO','O3','SO2','NO2']
     location_df = pd.read_csv(file_path + "location.csv")
     station = location_df['location'].values
     location = location_df.values[:,1:]
@@ -168,13 +170,19 @@ class AQDataSet(Dataset):
                 set(self.list_cols_train_int)
                 - set([self.list_cols_train_int[-1]])
             )
+            
             self.X_test = data_df[:, lst_cols_input_test_int]
             self.l_test = self.get_distance_matrix(
                 lst_cols_input_test_int, test_station
             )
-            self.G_test = self.get_adjacency_matrix(lst_cols_input_test_int)
             self.Y_test = data_df[:,test_station]
-
+            if not self.interpolate:
+                self.G_test = self.get_adjacency_matrix(lst_cols_input_test_int)
+            else:
+                lst_cols_test = lst_cols_input_test_int.copy()
+                # breakpoint()
+                lst_cols_test.append(test_station)
+                self.G_test = self.get_adjacency_matrix(lst_cols_test)
 
     def get_distance(self, coords_1, coords_2):
         import geopy.distance
