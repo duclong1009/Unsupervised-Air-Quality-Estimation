@@ -118,9 +118,9 @@ def location_arr(file_path, res):
     return np.array(list_location)
 
 def get_data_array(file_path):
-    columns = ['PM2.5','Hour','Month', 'AQI', 'PM10','Mean',  'CO', 'NO2', 'O3', 'SO2', 'prec',
-       'lrad', 'shum', 'pres', 'temp', 'wind', 'srad']
-    # columns = ['PM2.5','AQI','PM10','CO','O3','SO2','NO2']
+    # columns = ['PM2.5','Hour','Month', 'AQI', 'PM10','Mean',  'CO', 'NO2', 'O3', 'SO2', 'prec',
+    #    'lrad', 'shum', 'pres', 'temp', 'wind', 'srad']
+    columns = ['PM2.5','AQI','PM10','CO','O3','SO2','NO2',"Change","wind"]
     location_df = pd.read_csv(file_path + "location.csv")
     station = location_df['location'].values
     location = location_df.values[:,1:]

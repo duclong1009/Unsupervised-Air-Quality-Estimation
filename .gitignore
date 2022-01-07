@@ -2,3 +2,5 @@
 ./data/
 wandb/**
 .vscode-upload.json
+data/**
+.gitignore
