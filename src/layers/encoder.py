@@ -83,28 +83,34 @@ class Attention_Encoder(nn.Module):
     def __init__(self, in_ft, hid_ft1, hid_ft2, out_ft, act="relu"):
         super(Attention_Encoder, self).__init__()
         self.fc = nn.Linear(in_ft, hid_ft1)
-        self.rnn = nn.LSTM(hid_ft1, hid_ft1, batch_first=False, num_layers=1)
+        self.rnn = nn.LSTM(19 * hid_ft1,19 * hid_ft1, batch_first=False, num_layers=1)
         self.attn = AttentionLSTM(hid_ft1, 120, hid_ft1, 12, 0.1)
-        # self.gcn = GCN(hid_ft1, hid_ft2, act)
-        # self.gcn2 = GCN(hid_ft2, out_ft, act)
-        self.fc2 = nn.Linear(hid_ft1, out_ft)
+        self.gcn = GCN(hid_ft1, hid_ft2, act)
+        self.gcn2 = GCN(hid_ft2, out_ft, act)
+        # self.fc2 = nn.Linear(hid_ft1, out_ft)
         self.relu = nn.ReLU()
 
     def forward(self, x, adj):
         # print(x)
         # print(adj)
         # breakpoint()
+        #[12,19,27]
+        # breakpoint()
         x = self.relu(self.fc(x))
         # print(f"relu fc {x}")
+        raw_shape = x.shape
+        x = torch.reshape(x,(raw_shape[0],1,-1))
+        # print(x.shape)
         x, h = self.rnn(x)
+        x = torch.reshape(x,(raw_shape[0],raw_shape[1],raw_shape[2]))
         # print(f"Rnn {x}")
         x = self.attn(x)
         # print(f"attn {x}")
         x = self.relu(x.unsqueeze(0))
-        x = self.fc2(x)
-        # x = self.gcn(x, adj)
-        # x = self.relu(x)
-        # x = self.gcn2(x, adj)
+        # x = self.fc2(x)
+        x = self.gcn(x, adj)
+        x = self.relu(x)
+        x = self.gcn2(x, adj)
         
         return x
 

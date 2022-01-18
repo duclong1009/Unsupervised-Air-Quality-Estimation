@@ -184,23 +184,6 @@ if __name__ == "__main__":
         decoder.parameters(), lr=args.lr_decoder, weight_decay=l2_coef
     )
     
-    # train_decoder_loss = []
-
-    # early_stopping_decoder = EarlyStopping(
-    #     patience=args.patience,
-    #     verbose=True,
-    #     delta=args.delta_decoder,
-    #     path=args.checkpoint_decoder,
-    # )
-    
-    # for i in range(args.num_epochs_decoder):
-    #     if not early_stopping_decoder.early_stop:
-    #         epoch_loss = train_atten_decoder_fn(
-    #             stdgi, decoder, train_dataloader, mse_loss, optimizer_decoder, device, interpolate=args.interpolate
-    #         )
-    #         early_stopping_decoder(epoch_loss, decoder)
-    #         print("Epochs/Loss: {}/ {}".format(i, epoch_loss))
-    #     train_decoder_loss.append(epoch_loss)
     load_model(decoder,args.checkpoint_decoder)
     #test
     list_acc = []

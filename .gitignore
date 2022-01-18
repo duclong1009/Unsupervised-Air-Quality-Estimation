@@ -1,6 +1,5 @@
 **/__pycache__/
-./data/
-wandb/**
 .vscode-upload.json
-data/**
-.gitignore
+wandb/
+out/
+data/

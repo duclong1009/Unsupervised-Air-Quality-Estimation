@@ -103,7 +103,7 @@ def preprocess_pipeline(df):
 
 import os
 
-def construct_ssa_data(len_component=8000, window_length=20, lst_reconstruct_idx=[i for i in range(0,13)], in_file='/home/aiotlabws/Workspace/Project/hungvv/stdgi/data/Beijing2/', out_file='/home/aiotlabws/Workspace/Project/hungvv/stdgi/data/BeijingSSA/'):
+def construct_ssa_data(len_component=8000, window_length=20, lst_reconstruct_idx=[i for i in range(0,13)], in_file='/home/aiotlabws/Workspace/Project/hungvv/stdgi/data/Beijing2/', out_file='/home/aiotlabws/Workspace/Project/hungvv/stdgi/data/BeijingSSA2/'):
     lst_files = [ x for x in os.listdir(in_file) if 'location' not in x] 
     print(lst_files)
 
@@ -119,23 +119,9 @@ def construct_ssa_data(len_component=8000, window_length=20, lst_reconstruct_idx
 
         df_ssa = reconstruct_total_df(df_, len_component=len_component, window_length=window_length, lst_reconstruct_idx=lst_reconstruct_idx)
         
-        df_ssa[['Change', 'Hour', 'Day','Month', 'Delta1', 'Delta3', 'Mean']] = trans_df[['Change', 'Hour', 'Day','Month', 'Delta1', 'Delta3', 'Mean']]
+        df_ssa[['Change', 'Hour', 'Day','Month', 'Delta1', 'Delta3', 'Mean']] = df[['Change', 'Hour', 'Day','Month', 'Delta1', 'Delta3', 'Mean']]
         df_ssa.to_csv(out_file + file, index=False)
 
-def add_mean(in_file='/home/aiotlabws/Workspace/Project/hungvv/stdgi/data/Beijing2/', out_file='/home/aiotlabws/Workspace/Project/hungvv/stdgi/data/BeijingSSA/'):
-    lst_files = [ x for x in os.listdir(in_file) if 'location' not in x] 
-    print(lst_files)
-
-    for file in lst_files:
-        df_in = pd.read_csv(in_file + file)
-        df_out = pd.read_csv(out_file + file)
-
-        df_out['Mean'] = df_in["Mean"]
-
-        df_out.to_csv(out_file +file, index=False)
-
-
-
 if __name__=="__main__":
-    # construct_ssa_data()
-    add_mean()
+    construct_ssa_data()
+    # add_mean  ()

@@ -40,9 +40,7 @@ def parse_args():
     parser.add_argument("--lr_stdgi", default=5e-3, type=float)
     parser.add_argument("--num_epochs_stdgi", default=100, type=int)
     parser.add_argument("--output_stdgi", default=60, type=int)
-    parser.add_argument(
-        "--checkpoint_stdgi", default="./out/checkpoint/stdgi.pt", type=str
-    )
+    parser.add_argument("--checkpoint_stdgi", default="stdgi", type=str)
     parser.add_argument("--output_path", default="./out/", type=str)
     parser.add_argument("--en_hid1", default=200, type=int)
     parser.add_argument("--en_hid2", default=400, type=int)
@@ -51,9 +49,7 @@ def parse_args():
     parser.add_argument("--delta_stdgi", default=0, type=float)
     parser.add_argument("--num_epochs_decoder", default=100, type=int)
     parser.add_argument("--lr_decoder", default=5e-3, type=float)
-    parser.add_argument(
-        "--checkpoint_decoder", default="./out/checkpoint/decoder.pt", type=str
-    )
+    parser.add_argument("--checkpoint_decoder", default="decoderư", type=str)
     # parser.add_argument("--visualize_dir", default="./output/visualize/", type=str)
     parser.add_argument("--delta_decoder", default=0, type=float)
     parser.add_argument("--cnn_hid_dim", default=128, type=int)
@@ -147,7 +143,7 @@ if __name__ == "__main__":
         patience=args.patience,
         verbose=True,
         delta=args.delta_stdgi,
-        path=args.checkpoint_stdgi,
+        path="./out/checkpoint/" + args.checkpoint_stdgi + ".pt",
     )
     logging.info(
         f"Training stdgi ||  interpolate {args.interpolate} || attention decoder {args.attention_decoder} || epochs {args.num_epochs_stdgi} || lr {args.lr_stdgi}"
@@ -169,7 +165,7 @@ if __name__ == "__main__":
             wandb.log({"loss/stdgi_loss": loss})
             logging.info("Epochs/Loss: {}/ {}".format(i, loss))
     wandb.run.summary["best_loss_stdgi"] = early_stopping_stdgi.best_score
-    load_model(stdgi, args.checkpoint_stdgi)
+    # load_model(stdgi,"./out/checkpoint/" + args.checkpoint_stdgi + ".pt")
 
     if not args.interpolate:
         decoder = Decoder(
@@ -211,7 +207,7 @@ if __name__ == "__main__":
         patience=args.patience,
         verbose=True,
         delta=args.delta_decoder,
-        path=args.checkpoint_decoder,
+        path="./out/checkpoint/" + args.checkpoint_decoder + ".pt",
     )
 
     for i in range(args.num_epochs_decoder):
@@ -229,7 +225,7 @@ if __name__ == "__main__":
             early_stopping_decoder(epoch_loss, decoder)
             print("Epochs/Loss: {}/ {}".format(i, epoch_loss))
             wandb.log({"loss/decoder_loss": epoch_loss})
-    load_model(decoder, args.checkpoint_decoder)
+    load_model(decoder, "./out/checkpoint/" + args.checkpoint_decoder + ".pt")
     wandb.run.summary["best_loss_decoder"] = early_stopping_decoder.best_score
     # test
     list_acc = []

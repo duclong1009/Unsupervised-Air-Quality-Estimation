@@ -163,7 +163,7 @@ def train_atten_decoder_fn(stdgi, decoder, dataloader, criterion, optimizer, dev
                 h, enc_hidd = stdgi.embedd(x, G.unsqueeze(0), l)
                 # import pdb; pdb.set_trace()
                 y_prd = decoder(x[-1].unsqueeze(0), h, l)
-            batch_loss += criterion(torch.squeeze(y_prd), torch.squeeze(y_grt))
+            batch_loss += linex_loss(torch.squeeze(y_prd), torch.squeeze(y_grt),-0.05)
         batch_loss = batch_loss / data["X"].shape[0]
         batch_loss.backward()
         optimizer.step()
