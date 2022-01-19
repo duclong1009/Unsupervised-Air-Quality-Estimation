@@ -163,12 +163,15 @@ def reconstruct_total_df(df, len_component, window_length,lst_reconstruct_idx):
 
         ans = []
         for i in range(num_i):
+            # import pdb; pdb.set_trace()
             if i != num_i:
-                component_data = lst_key[i*len_component: (i+1) * len_component]
+                component_data = lst_key[i*len_component: (i+1) * len_component] 
             else:
                 component_data = lst_key[i*len_component:]
+
+            add_noise = np.array(component_data) + np.divide(np.random.normal(0, .1, len(component_data)), 100)
             print(str(i) + ': ' + str(len(component_data)))
-            component_deconstructed = SSA(component_data, window_length)
+            component_deconstructed = SSA(add_noise, window_length)
             lst_key_reconstructed = component_deconstructed.reconstruct(lst_reconstruct_idx)
             print(lst_key_reconstructed)
             ans.extend(lst_key_reconstructed)

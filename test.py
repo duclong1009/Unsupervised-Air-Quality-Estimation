@@ -37,7 +37,7 @@ def parse_args():
     parser.add_argument("--patience", default=3, type=int)
 
     parser.add_argument("--lr_stdgi", default=5e-3, type=float)
-    parser.add_argument("--num_epochs_stdgi", default=20, type=int)
+    parser.add_argument("--num_epochs_stdgi", default=1, type=int)
     parser.add_argument("--output_stdgi", default=60, type=int)
     parser.add_argument(
         "--checkpoint_stdgi", default="./out/checkpoint/stdgi.pt", type=str
@@ -48,7 +48,7 @@ def parse_args():
     parser.add_argument("--dis_hid", default=6, type=int)
     parser.add_argument("--act_fn", default="relu", type=str)
     parser.add_argument("--delta_stdgi", default=0, type=float)
-    parser.add_argument("--num_epochs_decoder", default=20, type=int)
+    parser.add_argument("--num_epochs_decoder", default=1, type=int)
     parser.add_argument("--lr_decoder", default=5e-3, type=float)
     parser.add_argument(
         "--checkpoint_decoder", default="./out/checkpoint/decoder.pt", type=str
@@ -79,8 +79,9 @@ if __name__ == "__main__":
     config_seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # device = torch.device("cpu")
-    file_path = "./data/Beijing2/"
-    comb_arr,location_, station = get_data_array(file_path)
+    file_path = "./data/BeijingSSA/"
+    comb_arr,location_, station , featrues= get_data_array(file_path)
+    # breakpoint()
     trans_df, scaler = preprocess_pipeline(comb_arr)
 
     train_dataset = AQDataSet(
@@ -183,23 +184,6 @@ if __name__ == "__main__":
         decoder.parameters(), lr=args.lr_decoder, weight_decay=l2_coef
     )
     
-    # train_decoder_loss = []
-
-    # early_stopping_decoder = EarlyStopping(
-    #     patience=args.patience,
-    #     verbose=True,
-    #     delta=args.delta_decoder,
-    #     path=args.checkpoint_decoder,
-    # )
-    
-    # for i in range(args.num_epochs_decoder):
-    #     if not early_stopping_decoder.early_stop:
-    #         epoch_loss = train_atten_decoder_fn(
-    #             stdgi, decoder, train_dataloader, mse_loss, optimizer_decoder, device, interpolate=args.interpolate
-    #         )
-    #         early_stopping_decoder(epoch_loss, decoder)
-    #         print("Epochs/Loss: {}/ {}".format(i, epoch_loss))
-    #     train_decoder_loss.append(epoch_loss)
     load_model(decoder,args.checkpoint_decoder)
     #test
     list_acc = []

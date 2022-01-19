@@ -44,6 +44,7 @@ class Decoder(nn.Module):
         # hid_state = torch.zeros(1, batch_size, self.in_ft).to(DEVICE)
         output, hid_state = self.rnn(x_) # hidden_state = (seq_len,60, 27)
         x_ = output[-1] # (1, 27, 60)
+        
         x_ = torch.unsqueeze(x_,0) # (1, 27, 60)
         # breakpoint()
         x_ = x_.permute(0,2,1)

@@ -142,6 +142,7 @@ def train_atten_stdgi(
         epoch_loss += e_loss
     return epoch_loss / len(dataloader)
 from src.layers.loss import linex_loss
+
 def train_atten_decoder_fn(stdgi, decoder, dataloader, criterion, optimizer, device, interpolate=False):
     wandb.watch(decoder, criterion, log="all", log_freq=100)
     decoder.train()
@@ -149,6 +150,7 @@ def train_atten_decoder_fn(stdgi, decoder, dataloader, criterion, optimizer, dev
     for data in tqdm(dataloader):
         optimizer.zero_grad()
         batch_loss = 0
+
         for index in range(data["X"].shape[0]):
             y_grt = data["Y"][index].to(device).float()
             x = data["X"][index].to(device).float()
@@ -159,8 +161,9 @@ def train_atten_decoder_fn(stdgi, decoder, dataloader, criterion, optimizer, dev
                 y_prd = decoder(x[-1].unsqueeze(0), h, l)  # 3x1x1
             else:
                 h, enc_hidd = stdgi.embedd(x, G.unsqueeze(0), l)
-                y_prd = decoder(x[-1].unsqueeze(0), h, enc_hidd, l)
-            batch_loss += linex_loss(torch.squeeze(y_prd), torch.squeeze(y_grt),-0.1)
+                # import pdb; pdb.set_trace()
+                y_prd = decoder(x[-1].unsqueeze(0), h, l)
+            batch_loss += linex_loss(torch.squeeze(y_prd), torch.squeeze(y_grt),-0.05)
         batch_loss = batch_loss / data["X"].shape[0]
         batch_loss.backward()
         optimizer.step()
