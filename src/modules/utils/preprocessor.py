@@ -18,7 +18,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 import pandas as pd
 import numpy as np
-from SSA import reconstruct_long_arr
+from SSA import reconstruct_long_arr, reconstruct_total_df
 
 
 def get_columns(file_path):
@@ -60,6 +60,7 @@ def get_columns(file_path):
 def to_numeric(x):
     x_1 = x.apply(pd.to_numeric, errors="coerce")
     res = x_1.clip(lower=0)
+    res.fillna(0, inplace=True)
     return res
 
 def clipping(x):
@@ -80,29 +81,47 @@ def preprocess_pipeline(df):
     scaler = MinMaxScaler()
     preprocessor = ColumnTransformer(transformers=[("num", num_pl, lst_cols)])
     res = preprocessor.fit_transform(df)
-    res = np.transpose(np.array(res))
+    # res = np.transpose(np.array(res))
 
-    for i in range(len(res)):
-        noise  = np.abs(np.divide(np.random.normal(0, 1, len(res[i])), np.array([100 for i in range(len(res[i]))  ] )) )
-        res[i] += noise
-        inp = res[i].tolist()
-        print( "Input: "+ str(len(inp)))
-        res[i] = reconstruct_long_arr(inp, len_component=8000, window_length=20, lst_reconstruct_idx=[i for i in range(0,13)])
+    # for i in range(len(res)):
+    #     noise  = np.abs(np.divide(np.random.normal(0, 1, len(res[i])), np.array([100 for i in range(len(res[i]))  ] )) )
+    #     res[i] += noise
+    #     inp = res[i].tolist()
+    #     print( "Input: "+ str(len(inp)))
+    #     res[i] = reconstruct_long_arr(inp, len_component=8000, window_length=20, lst_reconstruct_idx=[i for i in range(0,13)])
 
-    n_ = res.shape[1]
-    res = np.reshape(res, (-1, 1))
-    # res = np.where(res <= threshold, res, threshold)
-    res = scaler.fit_transform(res)
-    res = np.reshape(res, (-1, n_))
+    # n_ = res.shape[1]
+    # res = np.reshape(res, (-1, 1))
+    # # res = np.where(res <= threshold, res, threshold)
+    # res = scaler.fit_transform(res)
+    # res = np.reshape(res, (-1, n_))
 
 
     trans_df = pd.DataFrame(res, columns=lst_cols, index=df.index)
     trans_df[["Year", "Month", "Day", "Hour"]] = df[["Year", "Month", "Day", "Hour"]]
-    return trans_df, scaler
+    return trans_df
 
+import os
+
+def construct_ssa_data(len_component=8000, window_length=20, lst_reconstruct_idx=[i for i in range(0,13)], in_file='/home/aiotlabws/Workspace/Project/hungvv/stdgi/data/Beijing2/', out_file='/home/aiotlabws/Workspace/Project/hungvv/stdgi/data/BeijingSSA2/'):
+    lst_files = [ x for x in os.listdir(in_file) if 'location' not in x] 
+    print(lst_files)
+
+    lst_files_processed = [x for x in os.listdir(out_file) ]
+    lst_files_not_processed  = list(set(lst_files) - set(lst_files_processed))
+
+    for file in lst_files_not_processed:
+        df = pd.read_csv(in_file + file)
+        trans_df = preprocess_pipeline(df)
+
+        df_ = trans_df[['AQI','PM10','PM2.5','CO','NO2','O3','SO2','prec','lrad','shum','pres','temp','wind','srad']]
+        # print(df_.head()) 
+
+        df_ssa = reconstruct_total_df(df_, len_component=len_component, window_length=window_length, lst_reconstruct_idx=lst_reconstruct_idx)
+        
+        df_ssa[['Change', 'Hour', 'Day','Month', 'Delta1', 'Delta3', 'Mean']] = df[['Change', 'Hour', 'Day','Month', 'Delta1', 'Delta3', 'Mean']]
+        df_ssa.to_csv(out_file + file, index=False)
 
 if __name__=="__main__":
-    data_file = "/home/aiotlab/projects/hungvv/stdgi-hung/stdgi/data/Station_5.csv"
-    df = pd.read_csv(data_file)
-    df_preprocess = preprocess_pipeline(df)
-    print(df_preprocess.head())
+    construct_ssa_data()
+    # add_mean  ()

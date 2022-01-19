@@ -78,6 +78,8 @@ def preprocess_pipeline(df):
     for i in range(c):
         threshold = np.percentile(res[:,i], 95)
         res[:,i] = np.where(res[:,i] > threshold, threshold, res[:,i])
+    # res = np.reshape(res, (-1, b,c))
+    # breakpoint()
     res = scaler.fit_transform(res)
     res = np.reshape(res, (-1, b,c))
     return res, scaler
@@ -168,13 +170,19 @@ class AQDataSet(Dataset):
                 set(self.list_cols_train_int)
                 - set([self.list_cols_train_int[-1]])
             )
+            
             self.X_test = data_df[:, lst_cols_input_test_int]
             self.l_test = self.get_distance_matrix(
                 lst_cols_input_test_int, test_station
             )
-            self.G_test = self.get_adjacency_matrix(lst_cols_input_test_int)
             self.Y_test = data_df[:,test_station]
-
+            if not self.interpolate:
+                self.G_test = self.get_adjacency_matrix(lst_cols_input_test_int)
+            else:
+                lst_cols_test = lst_cols_input_test_int.copy()
+                # breakpoint()
+                lst_cols_test.append(test_station)
+                self.G_test = self.get_adjacency_matrix(lst_cols_test)
 
     def get_distance(self, coords_1, coords_2):
         import geopy.distance

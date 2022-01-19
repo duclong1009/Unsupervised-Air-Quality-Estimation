@@ -41,7 +41,7 @@ def test_atten_decoder_fn(
                     y_prd = decoder(x[-1].unsqueeze(0), h, l)  # 3x1x1
                 else:
                     h, enc_hidd = stdgi.embedd(x, G.unsqueeze(0), l)
-                    y_prd = decoder(x[-1].unsqueeze(0), h, enc_hidd, l)
+                    y_prd = decoder(x[-1].unsqueeze(0), h, l)
                 y_prd = torch.squeeze(y_prd).cpu().detach().numpy()
                 y_grt = torch.squeeze(y_grt).cpu().detach().numpy()
                 list_prd.append(y_prd)

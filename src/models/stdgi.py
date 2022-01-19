@@ -34,6 +34,7 @@ class BaseSTDGI(nn.Module):
         h = self.encoder(x, adj)
         return h
 
+
 class STDGI(nn.Module):
     def __init__(self, in_ft, out_ft, en_hid1, en_hid2, dis_hid, act_en="relu"):
         super(STDGI, self).__init__()
