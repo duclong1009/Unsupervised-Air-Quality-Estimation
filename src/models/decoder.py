@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 class Decoder(nn.Module):
     def __init__(
-        self, in_ft, out_ft, n_layers_rnn=1, rnn="GRU", cnn_hid_dim=128, fc_hid_dim=64
+        self, in_ft, out_ft, n_layers_rnn=1, rnn="GRU", cnn_hid_dim=128, fc_hid_dim=64,n_features=7
     ):
         super(Decoder, self).__init__()
         self.in_ft = in_ft
@@ -23,11 +23,12 @@ class Decoder(nn.Module):
             padding=2,
             stride=1,
         )
-        self.linear = nn.Linear(in_features=cnn_hid_dim, out_features=fc_hid_dim)
+        self.embed = nn.Linear(n_features, cnn_hid_dim)
+        self.linear = nn.Linear(in_features=cnn_hid_dim*2, out_features=fc_hid_dim)
         self.linear2 = nn.Linear(fc_hid_dim, out_ft)
         self.relu = nn.ReLU()
 
-    def forward(self, x, h, l):
+    def forward(self, x, h, l,climate):
         """
         x.shape = steps x (n1-1) x num_ft
         h.shape = steps x (n1-1) x latent_dim
@@ -52,6 +53,9 @@ class Decoder(nn.Module):
         ret = self.cnn(x_) # (input_size, hidden_dim) = (60, 128)
         ret = torch.bmm(ret, l_) # ret= (1, 128, 27) * (1, 27, 1) = (1, 128, 1)
         ret = ret.reshape(ret.shape[0], -1) # output =  
+        embed = self.embed(climate)
+        embed = embed.reshape(1, -1)
+        ret = torch.cat((ret, embed), dim=-1)
         ret = self.linear(ret) # (128, 1)
         ret = self.relu(ret) # (128,64)
         ret = self.linear2(ret) # (64,1)
