@@ -82,7 +82,9 @@ def preprocess_pipeline(df):
     # breakpoint()
     res = scaler.fit_transform(res)
     res = np.reshape(res, (-1, b,c))
-    return res, scaler
+    trans_df = res[:,:,9:]
+    climate_df = res[:,:9:]
+    return trans_df,climate_df, scaler
 
 def get_list_file(folder_path):
     from os import listdir
@@ -117,10 +119,11 @@ def location_arr(file_path, res):
         list_location.append([loc[1],loc[0]])
     return np.array(list_location)
 
-def get_data_array(file_path):
+def get_data_array(file_path,columns2):
     # columns = ['PM2.5','Hour','Month', 'AQI', 'PM10','Mean',  'CO', 'NO2', 'O3', 'SO2', 'prec',
     #    'lrad', 'shum', 'pres', 'temp', 'wind', 'srad']
-    columns = ['PM2.5','AQI','PM10','CO','O3','SO2','NO2',"Change","wind"]
+    columns1 = ['PM2.5','AQI','PM10','CO','O3','SO2','NO2',"Change","wind"]
+    columns = columns1 + columns2
     location_df = pd.read_csv(file_path + "location.csv")
     station = location_df['location'].values
     location = location_df.values[:,1:]
@@ -144,6 +147,7 @@ class AQDataSet(Dataset):
     def __init__(
         self,
         data_df,
+        climate_df,
         location_df,
         list_train_station,
         input_dim,
@@ -176,6 +180,7 @@ class AQDataSet(Dataset):
                 lst_cols_input_test_int, test_station
             )
             self.Y_test = data_df[:,test_station]
+            self.climate_test = climate_df[:,test_station]
             if not self.interpolate:
                 self.G_test = self.get_adjacency_matrix(lst_cols_input_test_int)
             else:
@@ -223,6 +228,7 @@ class AQDataSet(Dataset):
             y = self.Y_test[index + self.input_len - 1,0]
             G = self.G_test
             l = self.l_test
+            climate = self.climate_test[index + self.input_len - 1,:]
         else:
             # chon 1 tram ngau  nhien trong 28 tram lam target tai moi sample
             # import pdb; pdb.set_trace()
@@ -238,8 +244,7 @@ class AQDataSet(Dataset):
             y = self.data_df[
                 index + self.input_len - 1, picked_target_station_int,0
             ]
-            # import pdb;
-            # pdb.set_trace()
+            climate = self.climate_df[index + self.input_len - 1, picked_target_station_int,:]
             if not self.interpolate:
                 G = self.get_adjacency_matrix(lst_col_train_int, picked_target_station_int)
             else:
@@ -250,7 +255,7 @@ class AQDataSet(Dataset):
             l = self.get_reverse_distance_matrix(
                 lst_col_train_int, picked_target_station_int
             )
-        sample = {"X": x,"Y":np.array([y]), "G": np.array(G), "l":np.array(l)}
+        sample = {"X": x,"Y":np.array([y]), "G": np.array(G), "l":np.array(l),'climate':climate}
         return sample
 
     def __len__(self) -> int:

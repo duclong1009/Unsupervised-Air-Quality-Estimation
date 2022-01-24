@@ -156,9 +156,10 @@ def train_atten_decoder_fn(stdgi, decoder, dataloader, criterion, optimizer, dev
             x = data["X"][index].to(device).float()
             G = data["G"][index][0].to(device).float()
             l = data["l"][index].to(device).float()
+            cli = data['climate'][index].to(device).float()
             if not interpolate:
                 h = stdgi.embedd(x, G.unsqueeze(0))
-                y_prd = decoder(x[-1].unsqueeze(0), h, l)  # 3x1x1
+                y_prd = decoder(x[-1].unsqueeze(0), h, l,cli)  # 3x1x1
             else:
                 h, enc_hidd = stdgi.embedd(x, G.unsqueeze(0), l)
                 # import pdb; pdb.set_trace()
