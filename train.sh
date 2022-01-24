@@ -1,1 +1,1 @@
-CUDA_VISIBLE_DEVICE=0 python3 -u train_attention_stdgi.py --name wno-CNN1D --input_dim 9 --loss mse --checkpoint_decoder decoder_wno_cnn --checkpoint_stdgi stdgi_wno_nn --num_epochs_stdgi 0
+CUDA_VISIBLE_DEVICE=2 python3 -u train_attention_stdgi.py --name wno-atten-fc --input_dim 9 --loss mse --checkpoint_decoder decoder_wno_atten_fc --checkpoint_stdgi stdgi_wno_atten_fc --num_epochs_stdgi 0
