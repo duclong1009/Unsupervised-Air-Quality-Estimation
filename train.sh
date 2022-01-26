@@ -1,1 +1,1 @@
-CUDA_VISIBLE_DEVICE=2 python train_attention_stdgi.py --input_dim 9 --num_epochs_stdgi 1 --num_epochs_decoder 1 --name test
+CUDA_VISIBLE_DEVICE=2 python train_attention_stdgi.py --input_dim 9 --name default_model --checkpoint_decoder decoder_default --checkpoint_stdgi stdgi_default

@@ -49,10 +49,10 @@ def parse_args():
     parser.add_argument("--delta_stdgi", default=0, type=float)
     parser.add_argument("--num_epochs_decoder", default=100, type=int)
     parser.add_argument("--lr_decoder", default=5e-3, type=float)
-    parser.add_argument("--checkpoint_decoder", default="decoderư", type=str)
+    parser.add_argument("--checkpoint_decoder", default="decoder", type=str)
     parser.add_argument("--delta_decoder", default=0, type=float)
     parser.add_argument("--cnn_hid_dim", default=64, type=int)
-    parser.add_argument("--fc_hid_dim", default=64, type=int)
+    parser.add_argument("--fc_hid_dim", default=128, type=int)
     parser.add_argument("--rnn_type", default="LSTM", type=str)
     parser.add_argument("--n_layers_rnn", default=3, type=int)
     parser.add_argument("--interpolate", default=False, type=bool)
@@ -68,11 +68,6 @@ from utils.loader import get_columns, AQDataSet, location_arr
 import logging
 import wandb
 import json
-
-# def init_weights(m):
-#     if isinstance(m, nn.Linear):
-#         torch.nn.init.xavier_uniform(m.weight)
-#         m.bias.data.fill_(0.01)
 
 if __name__ == "__main__":
     logging.basicConfig(
@@ -176,6 +171,7 @@ if __name__ == "__main__":
             rnn=args.rnn_type,
             cnn_hid_dim=args.cnn_hid_dim,
             fc_hid_dim=args.fc_hid_dim,
+            n_features=len(args.climate_features)
         ).to(device)
 
     else:
