@@ -85,9 +85,9 @@ class Attention_Encoder(nn.Module):
         self.fc = nn.Linear(in_ft, hid_ft1)
         self.rnn = nn.LSTM(19 * hid_ft1,19 * hid_ft1, batch_first=False, num_layers=1)
         self.attn = AttentionLSTM(hid_ft1, 120, hid_ft1, 12, 0.1)
-        # self.gcn = GCN(hid_ft1, hid_ft2, act)
-        # self.gcn2 = GCN(hid_ft2, out_ft, act)
-        self.fc2 = nn.Linear(hid_ft1, out_ft)
+        self.gcn = GCN(hid_ft1, hid_ft2, act)
+        self.gcn2 = GCN(hid_ft2, out_ft, act)
+        # self.fc2 = nn.Linear(hid_ft1, out_ft)
         self.relu = nn.ReLU()
 
     def forward(self, x, adj):
@@ -108,11 +108,9 @@ class Attention_Encoder(nn.Module):
         x = x[-1]
         # print(f"attn {x}")
         x = self.relu(x.unsqueeze(0))
-        # x = self.fc2(x)
-        # x = self.gcn(x, adj)
-        # x = self.relu(x)
-        # x = self.gcn2(x, adj)
-        x = self.fc2(x)
+        x = self.gcn(x, adj)
+        x = self.relu(x)
+        x = self.gcn2(x, adj)
         return x
 
 class InterpolateAttentionEncoder(nn.Module):

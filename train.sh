@@ -1,1 +1,1 @@
-python train_attention_stdgi.py --input_dim 9 --name stdgi_wnogcn --checkpoint_decoder decoder_wnogcn --checkpoint_stdgi stdgi_wnogcn
+python train_attention_stdgi.py --input_dim 9 --name stdgi_wnocnn --checkpoint_decoder decoder_wnocnn --checkpoint_stdgi stdgi_wnocnn --num_epochs_stdgi 1 --num_epochs_decoder 1 

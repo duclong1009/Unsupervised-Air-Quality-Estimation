@@ -27,7 +27,7 @@ class Decoder(nn.Module):
         self.linear = nn.Linear(in_features=cnn_hid_dim*2, out_features=fc_hid_dim)
         self.linear2 = nn.Linear(fc_hid_dim, out_ft)
         self.relu = nn.ReLU()
-
+        self.fc = nn.Linear(in_ft, cnn_hid_dim)
     def forward(self, x, h, l,climate):
         """
         x.shape = steps x (n1-1) x num_ft
@@ -49,9 +49,10 @@ class Decoder(nn.Module):
         
         x_ = torch.unsqueeze(x_,0) # (1, 27, 60)
         # breakpoint()
-        x_ = x_.permute(0,2,1)
-        # x_ = x_.reshape(1, x_.shape[1], x_.shape[0]) # output = (1, 60, 27)
-        ret = self.cnn(x_) # (input_size, hidden_dim) = (60, 128)
+        ret = self.fc(x_)
+        # x_ = x_.permute(0,2,1)
+        # # x_ = x_.reshape(1, x_.shape[1], x_.shape[0]) # output = (1, 60, 27)
+        # ret = self.cnn(x_) # (input_size, hidden_dim) = (60, 128)
         ret = torch.bmm(ret, l_) # ret= (1, 128, 27) * (1, 27, 1) = (1, 128, 1)
         ret = ret.reshape(ret.shape[0], -1) # output =  
         embed = self.embed(climate)
