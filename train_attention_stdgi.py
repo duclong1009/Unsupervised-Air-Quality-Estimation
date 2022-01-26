@@ -274,7 +274,3 @@ if __name__ == "__main__":
 
     with open(args.output_path + "test/predict.json", "w") as f:
         json.dump(predict, f)
-    # torch.onnx.export(stdgi,train_dataset[0]["X"],"STDGI.onnx",export_params=True)
-    # wandb.save("STDGI.onnx")
-    # torch.onnx.export(decoder,train_dataset[0]["X"],"DECODER.onnx",export_params=True)
-    # torch.save("DECODER.onnx")
