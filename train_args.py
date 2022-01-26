@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import random
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 
 # from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
@@ -16,7 +16,7 @@ from src.models.stdgi import Attention_STDGI, InterpolateAttention_STDGI
 from src.models.decoder import Decoder, InterpolateAttentionDecoder, InterpolateDecoder
 from src.modules.train.train import train_atten_decoder_fn
 from src.modules.train.train import train_atten_stdgi
-
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -31,6 +31,7 @@ def parse_args():
         default=[i for i in range(20, 35, 1)],
         type=list,
     )
+    parser.add_argument("--patience", default=5, type=int)
     parser.add_argument("--sequence_length", default=12, type=int)
     parser.add_argument("--batch_size", default=32, type=int)
     parser.add_argument("--num_epochs_decoder", default=100, type=int)
@@ -39,7 +40,8 @@ def parse_args():
     parser.add_argument("--fc_hid_dim", default=64, type=int)
     parser.add_argument("--rnn_type", default="LSTM", type=str)
     parser.add_argument("--n_layers_rnn", default=1, type=int)
-    parser.add_argument("--climate_features", default=["temp"], type=list)
+    parser.add_argument("--climate_features", default=['lrad', 'shum', 'pres', 'temp', 'wind', 'srad'], type=list)
+    parser.add_argument("--lr_decay_ratio",type= float)
     return parser.parse_args()
 
 
@@ -68,30 +70,31 @@ if __name__ == "__main__":
     config_seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     file_path = "./data/Beijing2/"
-    comb_arr, location_, station, features_name = get_data_array(file_path)
+    comb_arr, location_, station, features_name = get_data_array(file_path,config['climate_features'])
     trans_df,climate_df, scaler = preprocess_pipeline(comb_arr)
     config["features"] = features_name
     config['loss'] = "mse"
+    # breakpoint()
     decoder_name = f"{config['cnn_hid_dim']}_{config['fc_hid_dim']}_{config['n_layers_rnn']}_{config['rnn_type']}"
-    # wandb.init(
-    #     entity="aiotlab",
-    #     project="Spatial_PM2.5",
-    #     group="Train_1000ts_PM2.5",
-    #     name=decoder_name,
-    #     config=config,
-    # )
+    wandb.init(
+        entity="aiotlab",
+        project="Sweep-stdgi",
+        group="Train_1000ts_PM2.5",
+        name=decoder_name,
+        config=config,
+    )
 
     train_dataset = AQDataSet(
         data_df=trans_df[:1000],
         climate_df = climate_df[:1000],
         location_df=location_,
-        list_train_station=args.train_station,
-        input_dim=args.sequence_length,
+        list_train_station=config['train_station'],
+        input_dim=config['sequence_length'],
         interpolate=False,
     )
-
+    # breakpoint()
     train_dataloader = DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=True
+        train_dataset, batch_size=config['batch_size'], shuffle=True
     )
     # config["loss"] = 'mse'
     
@@ -103,61 +106,31 @@ if __name__ == "__main__":
             en_hid2=400,
             dis_hid=6,
         ).to(device)
-
     l2_coef = 0.0
     mse_loss = nn.MSELoss()
-    bce_loss = nn.BCELoss()
-    stdgi_optimizer_e = torch.optim.Adam(
-        stdgi.encoder.parameters(), lr=5e-3, weight_decay=l2_coef
-    )
-    stdgi_optimizer_d = torch.optim.Adam(
-        stdgi.disc.parameters(), lr=5e-3, weight_decay=l2_coef
-    )
-    early_stopping_stdgi = EarlyStopping(
-        patience=args.patience,
-        verbose=True,
-        delta=0,
-        path="./out/checkpoint/" + "stdgi" + ".pt",
-    )
-    train_stdgi_loss = []
-    # stdgi.apply(init_weights)
-    for i in range(50):
-        if not early_stopping_stdgi.early_stop:
-            loss = train_atten_stdgi(
-                stdgi,
-                train_dataloader,
-                stdgi_optimizer_e,
-                stdgi_optimizer_d,
-                bce_loss,
-                device,
-                interpolate=False,
-            )
-            early_stopping_stdgi(loss, stdgi)
-            # wandb.log({"loss/stdgi_loss": loss})
-            logging.info("Epochs/Loss: {}/ {}".format(i, loss))
-    # wandb.run.summary["best_loss_stdgi"] = early_stopping_stdgi.best_score
-    load_model(stdgi,"./out/checkpoint/" + "decoder" + ".pt")
-
+    load_model(stdgi,"./out/checkpoint/" + "stdgi2" + ".pt")
     decoder = Decoder(
             69,
             1,
-            n_layers_rnn=args.n_layers_rnn,
-            rnn=args.rnn_type,
-            cnn_hid_dim=args.cnn_hid_dim,
-            fc_hid_dim=args.fc_hid_dim,
+            n_layers_rnn=config['n_layers_rnn'],
+            rnn=config['rnn_type'],
+            cnn_hid_dim=config['cnn_hid_dim'],
+            fc_hid_dim=config['fc_hid_dim'],
+            n_features=len(config['climate_features'])
         ).to(device)
     optimizer_decoder = torch.optim.Adam(
-        decoder.parameters(), lr=args.lr_decoder, weight_decay=l2_coef
+        decoder.parameters(), lr=config['lr_decoder'], weight_decay=l2_coef
     )
 
     early_stopping_decoder = EarlyStopping(
-        patience=args.patience,
+        patience=config['patience'],
         verbose=True,
         delta=0,
-        path="./out/checkpoint/" + "decoder" + ".pt",
+        path="./out/checkpoint/" + decoder_name + ".pt",
     )
+    scheduler = ReduceLROnPlateau(optimizer_decoder, 'min', factor=config['lr_decay_ratio'])
 
-    for i in range(args.num_epochs_decoder):
+    for i in range(config['num_epochs_decoder']):
         if not early_stopping_decoder.early_stop:
             epoch_loss = train_atten_decoder_fn(
                 stdgi,
@@ -169,26 +142,29 @@ if __name__ == "__main__":
                 interpolate=False,
             )
             early_stopping_decoder(epoch_loss, decoder)
+            scheduler.step(epoch_loss)
             print("Epochs/Loss: {}/ {}".format(i, epoch_loss))
-            wandb.log({"loss/decoder_loss": epoch_loss})
-    load_model(decoder, "./out/checkpoint/" + "decoder" + ".pt")
-    wandb.run.summary["best_loss_decoder"] = early_stopping_decoder.best_score
-    # test
+    train_loss = early_stopping_decoder.best_score
+    wandb.log({"train_loss": train_loss})
+    load_model(decoder, "./out/checkpoint/" + decoder_name + ".pt")
     list_acc = []
     predict = {}
-    for test_station in args.test_station:
+    mae_mean = 0
+    mape_mean = 0
+    mse_mean = 0
+    for test_station in config['test_station']:
         test_dataset = AQDataSet(
             data_df=trans_df[:1000],
+            climate_df = climate_df[:1000],
             location_df=location_,
             list_train_station=[i for i in range(20)],
             test_station=test_station,
             test=True,
-            input_dim=args.sequence_length,
-            # output_dim=args.output_dim,
+            input_dim=config['sequence_length'],
             interpolate=False,
         )
         test_dataloader = DataLoader(
-            test_dataset, batch_size=args.batch_size, shuffle=False
+            test_dataset, batch_size=config['batch_size'], shuffle=False
         )
         # breakpoint()
         list_prd, list_grt = test_atten_decoder_fn(
@@ -196,21 +172,23 @@ if __name__ == "__main__":
         )
         mae, mse, mape, rmse, r2, corr = cal_acc(list_prd, list_grt)
         # breakpoint()
+        mae_mean += mae
+        mape_mean += mape
+        mse_mean += mse
         list_acc.append([test_station, mae, mse, mape, rmse, r2, corr])
         predict[test_station] = {"grt": list_grt, "prd": list_prd}
         print("Test Accuracy: {}".format(mae, mse, corr))
-        wandb.log({f"Station_{test_station}": list_prd})
+    wandb.log({"acc/mae": mae_mean,"acc/mape":mape_mean,"acc/mse":mse_mean})
     df = pd.DataFrame(
         np.array(list_acc),
         columns=["STATION", "MAE", "MSE", "MAPE", "RMSE", "R2", "CORR"],
     )
     wandb.log({"test_acc": df})
-    for test_station in args.test_station:
+    for test_station in config['test_station']:
         prd = predict[test_station]["prd"]
         grt = predict[test_station]["grt"]
         x = 800
         fig, ax = plt.subplots(figsize=(20, 8))
-        # ax.figure(figsize=(20,8))
         ax.plot(np.arange(x), grt[:x], label="grt")
         ax.plot(np.arange(x), prd[:x], label="prd")
         ax.legend()

@@ -104,7 +104,8 @@ class Attention_Encoder(nn.Module):
         x, h = self.rnn(x)
         x = torch.reshape(x,(raw_shape[0],raw_shape[1],raw_shape[2]))
         # print(f"Rnn {x}")
-        x = self.attn(x)
+        # x = self.attn(x)
+        x = x[-1]
         # print(f"attn {x}")
         x = self.relu(x.unsqueeze(0))
         # x = self.fc2(x)

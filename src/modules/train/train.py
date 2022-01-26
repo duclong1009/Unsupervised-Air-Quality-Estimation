@@ -92,7 +92,7 @@ import wandb
 def train_atten_stdgi(
     stdgi, dataloader, optim_e, optim_d, criterion, device, n_steps=2, interpolate=False
 ):
-    wandb.watch(stdgi, criterion, log="all", log_freq=100)
+    # wandb.watch(stdgi, criterion, log="all", log_freq=100)
     '''
     Sử dụng train Attention_STDGI model 
     '''
@@ -144,7 +144,7 @@ def train_atten_stdgi(
 from src.layers.loss import linex_loss
 
 def train_atten_decoder_fn(stdgi, decoder, dataloader, criterion, optimizer, device, interpolate=False):
-    wandb.watch(decoder, criterion, log="all", log_freq=100)
+    # wandb.watch(decoder, criterion, log="all", log_freq=100)
     decoder.train()
     epoch_loss = 0
     for data in tqdm(dataloader):
