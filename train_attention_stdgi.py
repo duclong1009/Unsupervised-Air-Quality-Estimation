@@ -60,6 +60,7 @@ def parse_args():
     parser.add_argument("--attention_decoder", default=False, type=bool)
     parser.add_argument("--loss", type=str, default="mse")
     parser.add_argument("--name", type=str)
+    parser.add_argument("--climate_features", default=["temp"], type=list)
     return parser.parse_args()
 
 
@@ -89,12 +90,13 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # device = torch.device("cpu")
     file_path = "./data/Beijing2/"
-    comb_arr, location_, station, features_name = get_data_array(file_path)
-    trans_df, scaler = preprocess_pipeline(comb_arr)
+    comb_arr, location_, station, features_name = get_data_array(file_path,args.climate_features)
+    trans_df,climate_df, scaler = preprocess_pipeline(comb_arr)
     config["features"] = features_name
 
     train_dataset = AQDataSet(
         data_df=trans_df[:1000],
+        climate_df = climate_df[:1000],
         location_df=location_,
         list_train_station=args.train_station,
         input_dim=args.sequence_length,
@@ -165,7 +167,7 @@ if __name__ == "__main__":
             wandb.log({"loss/stdgi_loss": loss})
             logging.info("Epochs/Loss: {}/ {}".format(i, loss))
     wandb.run.summary["best_loss_stdgi"] = early_stopping_stdgi.best_score
-    # load_model(stdgi,"./out/checkpoint/" + args.checkpoint_stdgi + ".pt")
+    load_model(stdgi,"./out/checkpoint/" + args.checkpoint_stdgi + ".pt")
 
     if not args.interpolate:
         decoder = Decoder(

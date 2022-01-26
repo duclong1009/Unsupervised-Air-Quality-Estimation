@@ -82,8 +82,9 @@ def preprocess_pipeline(df):
     # breakpoint()
     res = scaler.fit_transform(res)
     res = np.reshape(res, (-1, b,c))
-    trans_df = res[:,:,9:]
-    climate_df = res[:,:9:]
+    # breakpoint()
+    trans_df = res[:,:,:9]
+    climate_df = res[:,:,9:]
     return trans_df,climate_df, scaler
 
 def get_list_file(folder_path):
@@ -167,6 +168,7 @@ class AQDataSet(Dataset):
         self.data_df = data_df
         self.location = location_df
         self.interpolate = interpolate
+        self.climate_df = climate_df
         # test data
         if self.test:
             test_station = int(test_station)

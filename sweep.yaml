@@ -1,0 +1,18 @@
+program: train_args.py
+method: grid
+metric:
+  name: mape
+  goal: minimize
+parameters:
+  batch_size:
+    values: [16,32,64]
+  lr_decoder:
+    values: [0.001, 0.005, 0.0001, 0.00005, 0.00001]
+  lr_decay_ratio:
+    values: [0.1, 0.5, 0.9]
+  cnn_hid_dim:
+    values: [64,128,256]
+  fc_hid_dim:
+    values: [64,128,256]
+  n_layers_rnn:
+    values: [1,2,3]
