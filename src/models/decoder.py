@@ -16,13 +16,13 @@ class Decoder(nn.Module):
             self.rnn = nn.LSTM(in_ft, in_ft, batch_first=False, num_layers=n_layers_rnn)
         else:
             self.rnn = nn.RNN(in_ft, in_ft, batch_first=False, num_layers=n_layers_rnn)
-        self.cnn = nn.Conv1d(
-            in_channels=in_ft,
-            out_channels=cnn_hid_dim,
-            kernel_size=5,
-            padding=2,
-            stride=1,
-        )
+        # self.cnn = nn.Conv1d(
+        #     in_channels=in_ft,
+        #     out_channels=cnn_hid_dim,
+        #     kernel_size=5,
+        #     padding=2,
+        #     stride=1,
+        # )
         self.embed = nn.Linear(n_features, cnn_hid_dim)
         self.linear = nn.Linear(in_features=cnn_hid_dim*2, out_features=fc_hid_dim)
         self.linear2 = nn.Linear(fc_hid_dim, out_ft)
@@ -50,7 +50,8 @@ class Decoder(nn.Module):
         x_ = torch.unsqueeze(x_,0) # (1, 27, 60)
         # breakpoint()
         ret = self.fc(x_)
-        # x_ = x_.permute(0,2,1)
+        ret = ret.permute(0,2,1)
+        # breakpoint()
         # # x_ = x_.reshape(1, x_.shape[1], x_.shape[0]) # output = (1, 60, 27)
         # ret = self.cnn(x_) # (input_size, hidden_dim) = (60, 128)
         ret = torch.bmm(ret, l_) # ret= (1, 128, 27) * (1, 27, 1) = (1, 128, 1)
