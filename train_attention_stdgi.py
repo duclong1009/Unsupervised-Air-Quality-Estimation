@@ -50,17 +50,16 @@ def parse_args():
     parser.add_argument("--num_epochs_decoder", default=100, type=int)
     parser.add_argument("--lr_decoder", default=5e-3, type=float)
     parser.add_argument("--checkpoint_decoder", default="decoderư", type=str)
-    # parser.add_argument("--visualize_dir", default="./output/visualize/", type=str)
     parser.add_argument("--delta_decoder", default=0, type=float)
-    parser.add_argument("--cnn_hid_dim", default=128, type=int)
+    parser.add_argument("--cnn_hid_dim", default=64, type=int)
     parser.add_argument("--fc_hid_dim", default=64, type=int)
     parser.add_argument("--rnn_type", default="LSTM", type=str)
-    parser.add_argument("--n_layers_rnn", default=1, type=int)
+    parser.add_argument("--n_layers_rnn", default=3, type=int)
     parser.add_argument("--interpolate", default=False, type=bool)
     parser.add_argument("--attention_decoder", default=False, type=bool)
     parser.add_argument("--loss", type=str, default="mse")
     parser.add_argument("--name", type=str)
-    parser.add_argument("--climate_features", default=["temp"], type=list)
+    parser.add_argument("--climate_features", default=['lrad', 'shum', 'pres', 'temp', 'wind', 'srad'], type=list)
     return parser.parse_args()
 
 
@@ -95,8 +94,8 @@ if __name__ == "__main__":
     config["features"] = features_name
 
     train_dataset = AQDataSet(
-        data_df=trans_df[:1000],
-        climate_df = climate_df[:1000],
+        data_df=trans_df,
+        climate_df = climate_df,
         location_df=location_,
         list_train_station=args.train_station,
         input_dim=args.sequence_length,
@@ -110,7 +109,7 @@ if __name__ == "__main__":
     wandb.init(
         entity="aiotlab",
         project="Spatial_PM2.5",
-        group="Train_1000ts_PM2.5",
+        group="Ablation_Study",
         name=f"{args.name}",
         config=config,
     )
@@ -234,7 +233,8 @@ if __name__ == "__main__":
     predict = {}
     for test_station in args.test_station:
         test_dataset = AQDataSet(
-            data_df=trans_df[:1000],
+            data_df=trans_df,
+            climate_df = climate_df,
             location_df=location_,
             list_train_station=[i for i in range(20)],
             test_station=test_station,
@@ -274,9 +274,3 @@ if __name__ == "__main__":
         ax.set_title(f"Tram_{test_station}")
         wandb.log({"Tram_{}".format(test_station): wandb.Image(fig)})
 
-    with open(args.output_path + "test/predict.json", "w") as f:
-        json.dump(predict, f)
-    # torch.onnx.export(stdgi,train_dataset[0]["X"],"STDGI.onnx",export_params=True)
-    # wandb.save("STDGI.onnx")
-    # torch.onnx.export(decoder,train_dataset[0]["X"],"DECODER.onnx",export_params=True)
-    # torch.save("DECODER.onnx")
