@@ -89,8 +89,8 @@ if __name__ == "__main__":
     config["features"] = features_name
 
     train_dataset = AQDataSet(
-        data_df=trans_df,
-        climate_df = climate_df,
+        data_df=trans_df[:30],
+        climate_df = climate_df[:30],
         location_df=location_,
         list_train_station=args.train_station,
         input_dim=args.sequence_length,
