@@ -83,8 +83,8 @@ def preprocess_pipeline(df):
     res = scaler.fit_transform(res)
     res = np.reshape(res, (-1, b,c))
     # breakpoint()
-    trans_df = res[:,:,:9]
-    climate_df = res[:,:,9:]
+    trans_df = res[:,:,:1]
+    climate_df = res[:,:,1:]
     return trans_df,climate_df, scaler
 
 def get_list_file(folder_path):
@@ -123,7 +123,7 @@ def location_arr(file_path, res):
 def get_data_array(file_path,columns2):
     # columns = ['PM2.5','Hour','Month', 'AQI', 'PM10','Mean',  'CO', 'NO2', 'O3', 'SO2', 'prec',
     #    'lrad', 'shum', 'pres', 'temp', 'wind', 'srad']
-    columns1 = ['PM2.5','AQI','PM10','CO','O3','SO2','NO2',"Change","wind"]
+    columns1 = ['PM2.5']
     columns = columns1 + columns2
     location_df = pd.read_csv(file_path + "location.csv")
     station = location_df['location'].values
