@@ -72,6 +72,7 @@ class Attention_STDGI(nn.Module):
         self.disc = Discriminator(x_ft=in_ft, h_ft=out_ft, hid_ft=dis_hid)
 
     def forward(self, x, x_k, adj):
+        # import pdb; pdb.set_trace()
         # x_ = x(t+k)
         h = self.encoder(x, adj)
         x_c = self.corrupt(x_k)

@@ -7,19 +7,23 @@ Project for unsupervised prediction in spatial
 
 ## Run model
 ```
-conda activate longvaipe
+conda activate longnd
 ```
 ```
-python train.py
+bash train.sh
 ```
 
 ## Options
 * ```--train_station``` Trạm được dùng trong quá trình train stdgi và decoder.
 * ```--test_station``` Trạm được dùng trong quá trình test.
-* ```--input_dim``` Default:1. Số features của input(stdgi).
+* ```--input_dim``` Default:9. Số features của input(stdgi).
 * ```--output_dim``` Default:1. Chiều đầu ra của output(decoder).
 * ```--sequence_length``` Default:12. Số time step của 1 sample.
+* ```--patience``` Kiên nhẫn trong early stopping.
+* ```--climate_features``` List feature của điểm muốn dự đoán ở Decoder
 #### Stdgi hyperparameter
+* ```--checkpoint_stdgi``` Tên file lưu weight model stdgi
+* ```--output_stdgi``` Số chiều đầu ra của encoder trong stdgi
 * ```lr_stdgi``` Learning rate.
 * ```num_epochs_stdgi``` Số epoch để train stdgi.
 * ```checkpoint_stdgi``` địa chỉ lưu model stdgi.

@@ -83,8 +83,8 @@ def preprocess_pipeline(df):
     res = scaler.fit_transform(res)
     res = np.reshape(res, (-1, b,c))
     # breakpoint()
-    trans_df = res[:,:,:1]
-    climate_df = res[:,:,1:]
+    trans_df = res[:,:,:9]
+    climate_df = res[:,:,9:]
     return trans_df,climate_df, scaler
 
 def get_list_file(folder_path):
@@ -121,9 +121,7 @@ def location_arr(file_path, res):
     return np.array(list_location)
 
 def get_data_array(file_path,columns2):
-    # columns = ['PM2.5','Hour','Month', 'AQI', 'PM10','Mean',  'CO', 'NO2', 'O3', 'SO2', 'prec',
-    #    'lrad', 'shum', 'pres', 'temp', 'wind', 'srad']
-    columns1 = ['PM2.5']
+    columns1 = ['PM2.5','AQI','PM10','CO','O3','SO2','NO2',"Change","wind"]
     columns = columns1 + columns2
     location_df = pd.read_csv(file_path + "location.csv")
     station = location_df['location'].values
@@ -133,6 +131,8 @@ def get_data_array(file_path,columns2):
     list_arr = []
     for i in station:
         df = pd.read_csv(file_path  + f"{i}.csv")[columns]
+        # add for fast test 
+        df = df.loc[:, ]
         # print(df.head())
         df = df.fillna(method='ffill')
         df = df.fillna(10)
@@ -187,7 +187,6 @@ class AQDataSet(Dataset):
                 self.G_test = self.get_adjacency_matrix(lst_cols_input_test_int)
             else:
                 lst_cols_test = lst_cols_input_test_int.copy()
-                # breakpoint()
                 lst_cols_test.append(test_station)
                 self.G_test = self.get_adjacency_matrix(lst_cols_test)
 
@@ -211,7 +210,6 @@ class AQDataSet(Dataset):
         return reverse_matrix / reverse_matrix.sum()
 
     def get_adjacency_matrix(self, list_col_train_int, target_station_int=None):
-        
         adjacency_matrix = []
         for j, i in enumerate(list_col_train_int):
             distance_matrix = self.get_distance_matrix(list_col_train_int, i)
@@ -221,7 +219,6 @@ class AQDataSet(Dataset):
         adjacency_matrix = np.array(adjacency_matrix)
         adjacency_matrix = np.expand_dims(adjacency_matrix, 0)
         adjacency_matrix = np.repeat(adjacency_matrix, self.input_len, 0)
-
         return adjacency_matrix
         
     def __getitem__(self, index: int):

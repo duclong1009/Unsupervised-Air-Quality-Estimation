@@ -1,0 +1,1 @@
+python train_attention_stdgi_test_4_cases.py --input_dim 9 --checkpoint_decoder decoder_wnocnn_pm_4case --checkpoint_stdgi stdgi_wnocnn_pm_4case

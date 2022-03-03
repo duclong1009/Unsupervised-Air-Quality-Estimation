@@ -91,12 +91,7 @@ class Attention_Encoder(nn.Module):
         self.relu = nn.ReLU()
 
     def forward(self, x, adj):
-        # print(x)
-        # print(adj)
-        # breakpoint()
-        #[12,19,27]
-        # breakpoint()
-        # breakpoint()
+        import pdb; pdb.set_trace()
         x = self.relu(self.fc(x))
         # print(f"relu fc {x}")
         raw_shape = x.shape
