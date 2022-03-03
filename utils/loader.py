@@ -132,7 +132,6 @@ def get_data_array(file_path,columns2):
     for i in station:
         df = pd.read_csv(file_path  + f"{i}.csv")[columns]
         # add for fast test 
-        df = df.loc[:, ]
         # print(df.head())
         df = df.fillna(method='ffill')
         df = df.fillna(10)
