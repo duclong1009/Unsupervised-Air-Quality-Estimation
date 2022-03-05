@@ -91,7 +91,6 @@ class Attention_Encoder(nn.Module):
         self.relu = nn.ReLU()
 
     def forward(self, x, adj):
-        import pdb; pdb.set_trace()
         x = self.relu(self.fc(x))
         # print(f"relu fc {x}")
         raw_shape = x.shape

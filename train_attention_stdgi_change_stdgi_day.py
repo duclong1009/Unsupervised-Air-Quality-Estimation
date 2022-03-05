@@ -5,6 +5,7 @@ import numpy as np
 import random
 from tqdm.notebook import tqdm
 
+# from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 import pandas as pd
 from src.modules.train.test import cal_acc, test_atten_decoder_fn
@@ -15,6 +16,7 @@ from src.models.stdgi import Attention_STDGI, InterpolateAttention_STDGI
 from src.models.decoder import Decoder, InterpolateAttentionDecoder, InterpolateDecoder
 from src.modules.train.train import train_atten_decoder_fn
 from src.modules.train.train import train_atten_stdgi
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -60,6 +62,7 @@ def parse_args():
     parser.add_argument("--name", type=str)
     parser.add_argument("--climate_features", default=['lrad', 'shum', 'pres', 'temp', 'wind', 'srad'], type=list)
     return parser.parse_args()
+
 
 from utils.loader import comb_df
 from utils.loader import get_columns, AQDataSet, location_arr
@@ -197,7 +200,7 @@ if __name__ == "__main__":
     optimizer_decoder = torch.optim.Adam(
         decoder.parameters(), lr=args.lr_decoder, weight_decay=l2_coef
     )
-    
+
     early_stopping_decoder = EarlyStopping(
         patience=args.patience,
         verbose=True,
@@ -222,7 +225,6 @@ if __name__ == "__main__":
             wandb.log({"loss/decoder_loss": epoch_loss})
     load_model(decoder, "./out/checkpoint/" + args.checkpoint_decoder + ".pt")
     wandb.run.summary["best_loss_decoder"] = early_stopping_decoder.best_score
-
     # test
     list_acc = []
     predict = {}
