@@ -5,7 +5,6 @@ import numpy as np
 import random
 from tqdm.notebook import tqdm
 
-# from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 import pandas as pd
 from src.modules.train.test import cal_acc, test_atten_decoder_fn
@@ -23,15 +22,19 @@ def parse_args():
     parser.add_argument("--seed", default=52, type=int, help="Seed")
     parser.add_argument(
         "--train_station",
+        default=[i for i in range(20)],
         type=list,
     )
     parser.add_argument(
         "--test_station",
+        default=[i for i in range(20, 35, 1)],
         type=list,
     )
     parser.add_argument("--input_dim", default=9, type=int)
     parser.add_argument("--output_dim", default=1, type=int)
-    parser.add_argument("--sequence_length", default=12, type=int)
+    parser.add_argument(
+        "--sequence_length", default=[i for i in range(3, 12)], type=list
+    )
     parser.add_argument("--batch_size", default=32, type=int)
     parser.add_argument("--patience", default=5, type=int)
 
@@ -58,8 +61,13 @@ def parse_args():
     parser.add_argument("--attention_decoder", default=False, type=bool)
     # parser.add_argument("--loss", type=str, default="mse")
     parser.add_argument("--name", type=str)
-    parser.add_argument("--climate_features", default=['lrad', 'shum', 'pres', 'temp', 'wind', 'srad'], type=list)
+    parser.add_argument(
+        "--climate_features",
+        default=["lrad", "shum", "pres", "temp", "wind", "srad"],
+        type=list,
+    )
     return parser.parse_args()
+
 
 from utils.loader import comb_df
 from utils.loader import get_columns, AQDataSet, location_arr
@@ -82,57 +90,32 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # device = torch.device("cpu")
     file_path = "./data/BeijingSSA/"
-    comb_arr, location_, station, features_name = get_data_array(file_path,args.climate_features)
-    trans_df,climate_df, scaler = preprocess_pipeline(comb_arr)
+    comb_arr, location_, station, features_name = get_data_array(
+        file_path, args.climate_features
+    )
+    trans_df, climate_df, scaler = preprocess_pipeline(comb_arr)
     config["features"] = features_name
-
-    # 4 thi nghiem
-    tests = [
-        {   'name': 'test_1',
-            'train': [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
-            'valid': [16,17,18,19],
-            'test': [20,21, 22,23,24,25,26,27,28,29,30,31,32,33,34] 
-        }, 
-        {   'name': 'test_2',
-            'train': [15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30],
-            'valid': [31,32,33,34],
-            'test': [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14] 
-        }, 
-        {   'name': 'test_3',
-            'train': [0,1,2,3,4,5,6,7,8,9,10,15,16,17,18,19],
-            'valid': [27,28,29,30],
-            'test': [11,12,13,14,20,21,22,23,24,25,26,31,32,33,34] 
-        },
-        {   'name': 'test_4',
-            'train': [1,2,3,16,17,18,19, 28,29,30,22,23, 11,12,13,14],
-            'valid': [27,24,25,26],
-            'test': [20,21, 31,32,33,34, 4,5,6,7,8,9,10,15, 0] 
-        }
-    ]
-    for test in tests:
-        args.name = test['name']
-        args.train_station = test['train']
-        args.test_station = test['test']
-
+    # print(trans_df.shape)
+    for seq in args.sequence_length:
+        print("----------------SEQ DAYS: {}".format(seq))
         train_dataset = AQDataSet(
             data_df=trans_df,
-            climate_df = climate_df,
+            climate_df=climate_df,
             location_df=location_,
             list_train_station=args.train_station,
-            input_dim=args.sequence_length,
+            input_dim=seq,
             interpolate=args.interpolate,
         )
 
         train_dataloader = DataLoader(
             train_dataset, batch_size=args.batch_size, shuffle=True
         )
-
         # config["loss"] = 'mse'
         wandb.init(
             entity="aiotlab",
             project="Spatial_PM2.5",
-            group="Test 4 cases",
-            name=f"{args.name}",
+            group="Change input sequence",
+            name=f"{seq} days",
             config=config,
         )
         # Model Stdgi
@@ -188,7 +171,7 @@ if __name__ == "__main__":
                 wandb.log({"loss/stdgi_loss": loss})
                 logging.info("Epochs/Loss: {}/ {}".format(i, loss))
         wandb.run.summary["best_loss_stdgi"] = early_stopping_stdgi.best_score
-        load_model(stdgi,"./out/checkpoint/" + args.checkpoint_stdgi + ".pt")
+        load_model(stdgi, "./out/checkpoint/" + args.checkpoint_stdgi + ".pt")
 
         if not args.interpolate:
             decoder = Decoder(
@@ -198,7 +181,7 @@ if __name__ == "__main__":
                 rnn=args.rnn_type,
                 cnn_hid_dim=args.cnn_hid_dim,
                 fc_hid_dim=args.fc_hid_dim,
-                n_features=len(args.climate_features)
+                n_features=len(args.climate_features),
             ).to(device)
 
         else:
@@ -251,18 +234,19 @@ if __name__ == "__main__":
                 wandb.log({"loss/decoder_loss": epoch_loss})
         load_model(decoder, "./out/checkpoint/" + args.checkpoint_decoder + ".pt")
         wandb.run.summary["best_loss_decoder"] = early_stopping_decoder.best_score
+
         # test
         list_acc = []
         predict = {}
         for test_station in args.test_station:
             test_dataset = AQDataSet(
                 data_df=trans_df,
-                climate_df = climate_df,
+                climate_df=climate_df,
                 location_df=location_,
                 list_train_station=[i for i in range(20)],
                 test_station=test_station,
                 test=True,
-                input_dim=args.sequence_length,
+                input_dim=seq,
                 # output_dim=args.output_dim,
                 interpolate=args.interpolate,
             )
@@ -284,11 +268,11 @@ if __name__ == "__main__":
             columns=["STATION", "MAE", "MSE", "MAPE", "RMSE", "R2", "CORR"],
         )
         wandb.log({"test_acc": df})
-        df.to_csv(args.output_path + "test/acc_{}.csv".format(args.name), index=False)
+        df.to_csv(args.output_path + "test/acc.csv", index=False)
         for test_station in args.test_station:
             prd = predict[test_station]["prd"]
             grt = predict[test_station]["grt"]
-            x = 800 if len(grt) >=800 else len(grt)
+            x = 800 if len(grt) >= 800 else len(grt)
             fig, ax = plt.subplots(figsize=(20, 8))
             # ax.figure(figsize=(20,8))
             ax.plot(np.arange(x), grt[:x], label="grt")
@@ -296,7 +280,3 @@ if __name__ == "__main__":
             ax.legend()
             ax.set_title(f"Tram_{test_station}")
             wandb.log({"Tram_{}".format(test_station): wandb.Image(fig)})
-
-        del stdgi
-        del decoder 
-

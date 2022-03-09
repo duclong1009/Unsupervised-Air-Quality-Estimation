@@ -83,8 +83,8 @@ def preprocess_pipeline(df):
     res = scaler.fit_transform(res)
     res = np.reshape(res, (-1, b,c))
     # breakpoint()
-    trans_df = res[:,:,:9]
-    climate_df = res[:,:,9:]
+    trans_df = res[:,:,:]
+    climate_df = res[:,:,6:]
     return trans_df,climate_df, scaler
 
 def get_list_file(folder_path):
@@ -121,9 +121,10 @@ def location_arr(file_path, res):
     return np.array(list_location)
 
 def get_data_array(file_path,columns2):
-    columns1 = ['PM2.5','AQI','PM10','CO','O3','SO2','NO2',"Change","wind"]
+    columns1 = ['PM2.5','PM10','CO','O3','SO2','NO2','NOXasNO2']
     columns = columns1 + columns2
     location_df = pd.read_csv(file_path + "location.csv")
+    # breakpoint()
     station = location_df['location'].values
     location = location_df.values[:,1:]
     location_ = location[:,[1,0]]
@@ -131,8 +132,6 @@ def get_data_array(file_path,columns2):
     list_arr = []
     for i in station:
         df = pd.read_csv(file_path  + f"{i}.csv")[columns]
-        # add for fast test 
-        # print(df.head())
         df = df.fillna(method='ffill')
         df = df.fillna(10)
         arr = df.astype(float).values
@@ -253,7 +252,7 @@ class AQDataSet(Dataset):
             l = self.get_reverse_distance_matrix(
                 lst_col_train_int, picked_target_station_int
             )
-        sample = {"X": x,"Y":np.array([y]), "G": np.array(G), "l":np.array(l),'climate':climate}
+        sample = {"X": x,"Y": np.array([y]), "G": np.array(G), "l": np.array(l),'climate':climate}
         return sample
 
     def __len__(self) -> int:

@@ -84,7 +84,7 @@ if __name__ == "__main__":
     config_seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # device = torch.device("cpu")
-    file_path = "./data/Beijing2/"
+    file_path = "./data/BeijingSSA/"
     comb_arr, location_, station, features_name = get_data_array(file_path,args.climate_features)
     trans_df,climate_df, scaler = preprocess_pipeline(comb_arr)
     config["features"] = features_name
