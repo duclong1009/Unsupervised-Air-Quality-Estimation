@@ -94,8 +94,8 @@ if __name__ == "__main__":
     trans_df, climate_df, scaler = preprocess_pipeline(comb_arr)
     config["features"] = features_name
     args.train_station = [i for i in range(14)]
-    args.test_station = [i for i in range(14,24,1)]
-    args.valid_station = [i for i in range(24,30,1)]
+    args.valid_station = [i for i in range(14,24,1)]
+    args.test_station = [i for i in range(24,30,1)]
     train_dataset = AQDataSet(
         data_df=trans_df,
         climate_df=climate_df,
