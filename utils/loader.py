@@ -121,7 +121,7 @@ def location_arr(file_path, res):
     return np.array(list_location)
 
 def get_data_array(file_path,columns2):
-    columns1 = ['PM2.5','PM10','CO','O3','SO2','NO2','NOXasNO2']
+    columns1 = ['PM2.5','PM10','O3','SO2','NO2','NOXasNO2']
     columns = columns1 + columns2
     location_df = pd.read_csv(file_path + "location.csv")
     # breakpoint()
