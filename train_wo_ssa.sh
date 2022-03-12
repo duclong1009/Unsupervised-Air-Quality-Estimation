@@ -1,1 +1,1 @@
-python train_attention_stdgi_test_wo_ssa.py --input_dim 9 --name stdgi_wno_ssa_temp_GCN_seq8 --checkpoint_decoder decoder_wno_ssa_temp_GCN_seq8 --checkpoint_stdgi stdgi_wno_ssa2_seq8 --num_epochs_stdgi 30 --num_epochs_decoder 30 --sequence_length 8
+python train_attention_stdgi_test_wo_ssa.py --input_dim 9 --name stdgi_wno_ssa_temp_GCN_wolstm --checkpoint_decoder decoder_wno_ssa_temp_GCN_wolstm --checkpoint_stdgi stdgi_wno_ssa_wolstm --num_epochs_stdgi 1 --num_epochs_decoder 1

@@ -43,9 +43,9 @@ class Decoder(nn.Module):
         l_ = l_.reshape(time_st, batch_size, 1)
         x_ = torch.cat((x, h), dim=2)  # timestep x nodes x hidden feat
         # hid_state = torch.zeros(1, batch_size, self.in_ft).to(DEVICE)
-        output, hid_state = self.rnn(x_) # hidden_state = (seq_len,60, 27)
+        # output, hid_state = self.rnn(x_) # hidden_state = (seq_len,60, 27)
         # output = self.relu(self.fc(x_))
-        x_ = output[-1] # (1, 27, 60)
+        # x_ = output[-1] # (1, 27, 60)
         
         x_ = torch.unsqueeze(x_,0) # (1, 27, 60)
         # breakpoint()
