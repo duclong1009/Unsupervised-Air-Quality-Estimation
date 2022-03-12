@@ -32,9 +32,7 @@ def parse_args():
     )
     parser.add_argument("--input_dim", default=9, type=int)
     parser.add_argument("--output_dim", default=1, type=int)
-    parser.add_argument(
-        "--sequence_length", default=[i for i in range(3, 12)], type=list
-    )
+    parser.add_argument("--sequence_length", default=[6, 8, 10, 12, 14, 16], type=list)
     parser.add_argument("--batch_size", default=32, type=int)
     parser.add_argument("--patience", default=5, type=int)
 
@@ -63,7 +61,7 @@ def parse_args():
     parser.add_argument("--name", type=str)
     parser.add_argument(
         "--climate_features",
-        default=["lrad", "shum", "pres", "temp", "wind", "srad"],
+        default=["temp", "humid", "pres"],
         type=list,
     )
     return parser.parse_args()
@@ -89,12 +87,15 @@ if __name__ == "__main__":
     config_seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # device = torch.device("cpu")
-    file_path = "./data/BeijingSSA/"
+    file_path = "./data/AQ/"
     comb_arr, location_, station, features_name = get_data_array(
         file_path, args.climate_features
     )
     trans_df, climate_df, scaler = preprocess_pipeline(comb_arr)
     config["features"] = features_name
+    args.train_station = [i for i in range(14)]
+    args.valid_station = [i for i in range(14, 24, 1)]
+    args.test_station = [i for i in range(24, 30, 1)]
     # print(trans_df.shape)
     for seq in args.sequence_length:
         print("----------------SEQ DAYS: {}".format(seq))
@@ -108,7 +109,7 @@ if __name__ == "__main__":
         )
 
         train_dataloader = DataLoader(
-            train_dataset, batch_size=args.batch_size, shuffle=True
+            train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8
         )
         # config["loss"] = 'mse'
         wandb.init(
@@ -149,7 +150,7 @@ if __name__ == "__main__":
             patience=args.patience,
             verbose=True,
             delta=args.delta_stdgi,
-            path="./out/checkpoint/" + args.checkpoint_stdgi + ".pt",
+            path="./out/checkpoint/" + args.checkpoint_stdgi + f"_{seq}.pt",
         )
         logging.info(
             f"Training stdgi ||  interpolate {args.interpolate} || attention decoder {args.attention_decoder} || epochs {args.num_epochs_stdgi} || lr {args.lr_stdgi}"
@@ -171,7 +172,7 @@ if __name__ == "__main__":
                 wandb.log({"loss/stdgi_loss": loss})
                 logging.info("Epochs/Loss: {}/ {}".format(i, loss))
         wandb.run.summary["best_loss_stdgi"] = early_stopping_stdgi.best_score
-        load_model(stdgi, "./out/checkpoint/" + args.checkpoint_stdgi + ".pt")
+        load_model(stdgi, "./out/checkpoint/" + args.checkpoint_stdgi + f"_{seq}.pt")
 
         if not args.interpolate:
             decoder = Decoder(
@@ -214,13 +215,12 @@ if __name__ == "__main__":
             patience=args.patience,
             verbose=True,
             delta=args.delta_decoder,
-            path="./out/checkpoint/" + args.checkpoint_decoder + ".pt",
+            path="./out/checkpoint/" + args.checkpoint_decoder + f"_{seq}.pt",
         )
 
         for i in range(args.num_epochs_decoder):
             if not early_stopping_decoder.early_stop:
-
-                epoch_loss = train_atten_decoder_fn(
+                train_loss = train_atten_decoder_fn(
                     stdgi,
                     decoder,
                     train_dataloader,
@@ -229,10 +229,38 @@ if __name__ == "__main__":
                     device,
                     interpolate=args.interpolate,
                 )
-                early_stopping_decoder(epoch_loss, decoder)
-                print("Epochs/Loss: {}/ {}".format(i, epoch_loss))
-                wandb.log({"loss/decoder_loss": epoch_loss})
-        load_model(decoder, "./out/checkpoint/" + args.checkpoint_decoder + ".pt")
+                valid_loss = 0
+                for valid_station in args.valid_station:
+                    valid_dataset = AQDataSet(
+                        data_df=trans_df,
+                        climate_df=climate_df,
+                        location_df=location_,
+                        list_train_station=args.train_station,
+                        test_station=valid_station,
+                        test=True,
+                        input_dim=seq,
+                        # output_dim=args.output_dim,
+                        interpolate=args.interpolate,
+                    )
+                    valid_dataloader = DataLoader(
+                        valid_dataset, batch_size=args.batch_size, shuffle=False, num_workers=8
+                    )
+                    valid_loss_ = test_atten_decoder_fn(
+                        stdgi, decoder, valid_dataloader, device, mse_loss, test=False
+                    )
+                    valid_loss += valid_loss_
+                valid_loss = valid_loss / len(args.valid_station)
+                early_stopping_decoder(valid_loss, decoder)
+                print(
+                    "Epochs/Loss: {}/Train loss: {} / Valid loss: {}".format(
+                        i, train_loss, valid_loss
+                    )
+                )
+                wandb.log({"loss/decoder_loss": train_loss})
+                wandb.log({"loss/valid_loss": valid_loss})
+        load_model(
+            decoder, "./out/checkpoint/" + args.checkpoint_decoder + f"_{seq}.pt"
+        )
         wandb.run.summary["best_loss_decoder"] = early_stopping_decoder.best_score
 
         # test
@@ -243,7 +271,7 @@ if __name__ == "__main__":
                 data_df=trans_df,
                 climate_df=climate_df,
                 location_df=location_,
-                list_train_station=[i for i in range(20)],
+                list_train_station=args.train_station,
                 test_station=test_station,
                 test=True,
                 input_dim=seq,
@@ -251,11 +279,11 @@ if __name__ == "__main__":
                 interpolate=args.interpolate,
             )
             test_dataloader = DataLoader(
-                test_dataset, batch_size=args.batch_size, shuffle=False
+                test_dataset, batch_size=args.batch_size, shuffle=False,num_workers=8
             )
             # breakpoint()
-            list_prd, list_grt = test_atten_decoder_fn(
-                stdgi, decoder, test_dataloader, device, args.interpolate, scaler
+            list_prd, list_grt,_ = test_atten_decoder_fn(
+                stdgi, decoder, test_dataloader, device,mse_loss, args.interpolate, scaler
             )
             mae, mse, mape, rmse, r2, corr = cal_acc(list_prd, list_grt)
             # breakpoint()
@@ -267,8 +295,8 @@ if __name__ == "__main__":
             np.array(list_acc),
             columns=["STATION", "MAE", "MSE", "MAPE", "RMSE", "R2", "CORR"],
         )
-        wandb.log({"test_acc": df})
-        df.to_csv(args.output_path + "test/acc.csv", index=False)
+        wandb.log({f"test_acc_seq_{seq}": df})
+        df.to_csv(args.output_path + f"test/acc_seq_{seq}.csv", index=False)
         for test_station in args.test_station:
             prd = predict[test_station]["prd"]
             grt = predict[test_station]["grt"]
@@ -279,4 +307,4 @@ if __name__ == "__main__":
             ax.plot(np.arange(x), prd[:x], label="prd")
             ax.legend()
             ax.set_title(f"Tram_{test_station}")
-            wandb.log({"Tram_{}".format(test_station): wandb.Image(fig)})
+            wandb.log({"Seq_{}_Tram_{}".format(seq,test_station): wandb.Image(fig)})
