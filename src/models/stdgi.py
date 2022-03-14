@@ -28,6 +28,8 @@ class BaseSTDGI(nn.Module):
         nb_nodes = X.shape[1]
         idx = np.random.permutation(nb_nodes)
         shuf_fts = X[:, idx, :]
+        print(shuf_fts)
+        print(np.random.uniform(2, 4) * shuf_fts)
         # return np.random.uniform(2, 4) * shuf_fts
         return shuf_fts
 
@@ -57,8 +59,8 @@ class STDGI(nn.Module):
         nb_nodes = X.shape[1]
         idx = np.random.permutation(nb_nodes)
         shuf_fts = X[:, idx, :]
-        return np.random.uniform(2, 4) * shuf_fts
-
+        # return np.random.uniform(2, 4) * shuf_fts
+        return shuf_fts
     def embedd(self, x, adj):
         h = self.encoder(x, adj)
         return h
@@ -86,8 +88,8 @@ class Attention_STDGI(nn.Module):
         nb_nodes = X.shape[1]
         idx = np.random.permutation(nb_nodes)
         shuf_fts = X[:, idx, :]
-        return np.random.uniform(2, 4) * shuf_fts
-
+        # return np.random.uniform(2, 4) * shuf_fts
+        return shuf_fts
     def embedd(self, x, adj):
         h = self.encoder(x, adj)
         return h
