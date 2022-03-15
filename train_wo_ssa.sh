@@ -1,1 +1,1 @@
-python train_attention_stdgi_test_wo_ssa.py --input_dim 9 --name stdgi_wno_ssa_temp_GCN_corrupt --checkpoint_decoder decoder_wno_ssa_temp_GCNv --checkpoint_stdgi stdgi_wno_ssa_corrupt --num_epochs_stdgi 30 --num_epochs_decoder 30
+python train_attention_stdgi_test_wo_ssa.py --input_dim 9 --name stdgi_wno_ssa_temp_GCN_corrupt12 --checkpoint_decoder decoder_wno_ssa_temp_GCN12 --checkpoint_stdgi stdgi_wno_ssa_corrupt12 --num_epochs_stdgi 30 --num_epochs_decoder 30
