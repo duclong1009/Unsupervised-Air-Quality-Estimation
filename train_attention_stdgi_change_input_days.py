@@ -32,7 +32,7 @@ def parse_args():
     )
     parser.add_argument("--input_dim", default=9, type=int)
     parser.add_argument("--output_dim", default=1, type=int)
-    parser.add_argument("--sequence_length", default=[18,20,22,24,26], type=list)
+    parser.add_argument("--sequence_length", default=[9,11,13,14,15,16,17,18,19,20], type=list)
     parser.add_argument("--batch_size", default=32, type=int)
     parser.add_argument("--patience", default=5, type=int)
 
