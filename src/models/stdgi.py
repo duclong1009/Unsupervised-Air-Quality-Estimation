@@ -88,7 +88,7 @@ class Attention_STDGI(nn.Module):
         nb_nodes = X.shape[1]
         idx = np.random.permutation(nb_nodes)
         shuf_fts = X[:, idx, :]
-        return np.random.uniform(1.3, 2) * shuf_fts
+        return np.random.uniform(2, 4) * shuf_fts
         # return shuf_fts
     def embedd(self, x, adj):
         h = self.encoder(x, adj)
