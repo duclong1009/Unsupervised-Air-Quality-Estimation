@@ -35,7 +35,6 @@ def parse_args():
     parser.add_argument("--sequence_length", default=12, type=int)
     parser.add_argument("--batch_size", default=32, type=int)
     parser.add_argument("--patience", default=5, type=int)
-
     parser.add_argument("--lr_stdgi", default=5e-3, type=float)
     parser.add_argument("--num_epochs_stdgi", default=1, type=int)
     parser.add_argument("--output_stdgi", default=60, type=int)
@@ -46,7 +45,6 @@ def parse_args():
     parser.add_argument("--dis_hid", default=6, type=int)
     parser.add_argument("--act_fn", default="relu", type=str)
     parser.add_argument("--delta_stdgi", default=0, type=float)
-
     parser.add_argument("--num_epochs_decoder", default=1, type=int)
     parser.add_argument("--lr_decoder", default=5e-3, type=float)
     parser.add_argument("--checkpoint_decoder", default="decoder", type=str)
@@ -58,6 +56,8 @@ def parse_args():
     parser.add_argument("--interpolate", default=False, type=bool)
     parser.add_argument("--attention_decoder", default=False, type=bool)
     # parser.add_argument("--loss", type=str, default="mse")
+    parser.add_argument("--stdgi_noise_min", default=0.4, type=float)
+    parser.add_argument("--stdgi_noise_max", default=0.7, type=float)
     parser.add_argument("--name", type=str)
     parser.add_argument(
         "--climate_features",
@@ -93,9 +93,13 @@ if __name__ == "__main__":
     )
     trans_df, climate_df, scaler = preprocess_pipeline(comb_arr)
     config["features"] = features_name
-    args.train_station = [i for i in range(14)]
-    args.valid_station = [i for i in range(14,24,1)]
-    args.test_station = [i for i in range(24,30,1)]
+    # args.train_station = [4, 17, 19, 21, 24, 26,16, 13,1, 2, 5, 9, 10, 14]
+    # args.valid_station =[0, 6, 22, 23, 25,3, 29,18, 27, 15]
+    # args.test_station = [8, 12, 7,20,11, 28]
+    test_name = 'test1'
+    args.train_station = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+    args.valid_station =[14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+    args.test_station = [24, 25, 26, 27, 28, 29]    
     train_dataset = AQDataSet(
         data_df=trans_df,
         climate_df=climate_df,
@@ -125,6 +129,8 @@ if __name__ == "__main__":
             en_hid1=args.en_hid1,
             en_hid2=args.en_hid2,
             dis_hid=args.dis_hid,
+            stdgi_noise_min=args.stdgi_noise_min,
+            stdgi_noise_max=args.stdgi_noise_max
         ).to(device)
     else:
         stdgi = InterpolateAttention_STDGI(
@@ -154,23 +160,23 @@ if __name__ == "__main__":
         f"Training stdgi ||  interpolate {args.interpolate} || attention decoder {args.attention_decoder} || epochs {args.num_epochs_stdgi} || lr {args.lr_stdgi}"
     )
     train_stdgi_loss = []
-    # stdgi.apply(init_weights)
-    for i in range(args.num_epochs_stdgi):
-        if not early_stopping_stdgi.early_stop:
-            loss = train_atten_stdgi(
-                stdgi,
-                train_dataloader,
-                stdgi_optimizer_e,
-                stdgi_optimizer_d,
-                bce_loss,
-                device,
-                interpolate=args.interpolate,
-            )
-            early_stopping_stdgi(loss, stdgi)
-            wandb.log({"loss/stdgi_loss": loss})
-            logging.info("Epochs/Loss: {}/ {}".format(i, loss))
-    wandb.run.summary["best_loss_stdgi"] = early_stopping_stdgi.best_score
-    load_model(stdgi, "./out/checkpoint/" + args.checkpoint_stdgi + ".pt")
+    # # stdgi.apply(init_weights)
+    # for i in range(args.num_epochs_stdgi):
+    #     if not early_stopping_stdgi.early_stop:
+    #         loss = train_atten_stdgi(
+    #             stdgi,
+    #             train_dataloader,
+    #             stdgi_optimizer_e,
+    #             stdgi_optimizer_d,
+    #             bce_loss,
+    #             device,
+    #             interpolate=args.interpolate,
+    #         )
+    #         early_stopping_stdgi(loss, stdgi)
+    #         wandb.log({"loss/stdgi_loss": loss})
+    #         logging.info("Epochs/Loss: {}/ {}".format(i, loss))
+    # wandb.run.summary["best_loss_stdgi"] = early_stopping_stdgi.best_score
+    # load_model(stdgi, "./out/checkpoint/" + args.checkpoint_stdgi + ".pt")
 
     if not args.interpolate:
         decoder = Decoder(
@@ -216,47 +222,47 @@ if __name__ == "__main__":
         path="./out/checkpoint/" + args.checkpoint_decoder + ".pt",
     )
 
-    for i in range(args.num_epochs_decoder):
-        if not early_stopping_decoder.early_stop:
-            train_loss = train_atten_decoder_fn(
-                stdgi,
-                decoder,
-                train_dataloader,
-                mse_loss,
-                optimizer_decoder,
-                device,
-                interpolate=args.interpolate,
-            )
-            valid_loss = 0
-            for valid_station in args.valid_station:
-                valid_dataset = AQDataSet(
-                    data_df=trans_df[:],
-                    climate_df=climate_df[:],
-                    location_df=location_,
-                    list_train_station=args.train_station,
-                    test_station=valid_station,
-                    test=True,
-                    input_dim=args.sequence_length,
-                    # output_dim=args.output_dim,
-                    interpolate=args.interpolate,
-                )
-                valid_dataloader = DataLoader(
-                    valid_dataset, batch_size=args.batch_size, shuffle=False, num_workers=8
-                )
-                valid_loss_ = test_atten_decoder_fn(
-                    stdgi, decoder, valid_dataloader, device, mse_loss, test=False
-                )
-                valid_loss += valid_loss_
-            valid_loss = valid_loss / len(args.valid_station)
-            early_stopping_decoder(valid_loss, decoder)
-            print(
-                "Epochs/Loss: {}/Train loss: {} / Valid loss: {}".format(
-                    i, train_loss, valid_loss
-                )
-            )
-            wandb.log({"loss/decoder_loss": train_loss})
+    # for i in range(args.num_epochs_decoder):
+    #     if not early_stopping_decoder.early_stop:
+    #         train_loss = train_atten_decoder_fn(
+    #             stdgi,
+    #             decoder,
+    #             train_dataloader,
+    #             mse_loss,
+    #             optimizer_decoder,
+    #             device,
+    #             interpolate=args.interpolate,
+    #         )
+    #         valid_loss = 0
+    #         for valid_station in args.valid_station:
+    #             valid_dataset = AQDataSet(
+    #                 data_df=trans_df[:],
+    #                 climate_df=climate_df[:],
+    #                 location_df=location_,
+    #                 list_train_station=args.train_station,
+    #                 test_station=valid_station,
+    #                 test=True,
+    #                 input_dim=args.sequence_length,
+    #                 # output_dim=args.output_dim,
+    #                 interpolate=args.interpolate,
+    #             )
+    #             valid_dataloader = DataLoader(
+    #                 valid_dataset, batch_size=args.batch_size, shuffle=False, num_workers=8
+    #             )
+    #             valid_loss_ = test_atten_decoder_fn(
+    #                 stdgi, decoder, valid_dataloader, device, mse_loss, test=False
+    #             )
+    #             valid_loss += valid_loss_
+    #         valid_loss = valid_loss / len(args.valid_station)
+    #         early_stopping_decoder(valid_loss, decoder)
+    #         print(
+    #             "Epochs/Loss: {}/Train loss: {} / Valid loss: {}".format(
+    #                 i, train_loss, valid_loss
+    #             )
+    #         )
+    #         wandb.log({"loss/decoder_loss": train_loss})
     load_model(decoder, "./out/checkpoint/" + args.checkpoint_decoder + ".pt")
-    wandb.run.summary["best_loss_decoder"] = early_stopping_decoder.best_score
+    # wandb.run.summary["best_loss_decoder"] = early_stopping_decoder.best_score
 
     # test
     list_acc = []
@@ -288,6 +294,11 @@ if __name__ == "__main__":
         predict[test_station] = {"grt": list_grt, "prd": list_prd}
         print("Test Accuracy: {}".format(mae, mse, corr))
         wandb.log({f"Station_{test_station}": list_prd})
+
+    for test_station in args.test_station:
+        df = pd.DataFrame(data=predict[test_station], columns=['grt','prd'])
+        df.to_csv("./result/{}/Station_{}.csv".format(test_name, test_station), index=False) 
+
     df = pd.DataFrame(
         np.array(list_acc),
         columns=["STATION", "MAE", "MSE", "MAPE", "RMSE", "R2", "CORR"],
