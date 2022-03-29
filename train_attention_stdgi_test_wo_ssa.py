@@ -161,22 +161,22 @@ if __name__ == "__main__":
     )
     train_stdgi_loss = []
     # # stdgi.apply(init_weights)
-    # for i in range(args.num_epochs_stdgi):
-    #     if not early_stopping_stdgi.early_stop:
-    #         loss = train_atten_stdgi(
-    #             stdgi,
-    #             train_dataloader,
-    #             stdgi_optimizer_e,
-    #             stdgi_optimizer_d,
-    #             bce_loss,
-    #             device,
-    #             interpolate=args.interpolate,
-    #         )
-    #         early_stopping_stdgi(loss, stdgi)
-    #         wandb.log({"loss/stdgi_loss": loss})
-    #         logging.info("Epochs/Loss: {}/ {}".format(i, loss))
-    # wandb.run.summary["best_loss_stdgi"] = early_stopping_stdgi.best_score
-    # load_model(stdgi, "./out/checkpoint/" + args.checkpoint_stdgi + ".pt")
+    for i in range(args.num_epochs_stdgi):
+        if not early_stopping_stdgi.early_stop:
+            loss = train_atten_stdgi(
+                stdgi,
+                train_dataloader,
+                stdgi_optimizer_e,
+                stdgi_optimizer_d,
+                bce_loss,
+                device,
+                interpolate=args.interpolate,
+            )
+            early_stopping_stdgi(loss, stdgi)
+            wandb.log({"loss/stdgi_loss": loss})
+            logging.info("Epochs/Loss: {}/ {}".format(i, loss))
+    wandb.run.summary["best_loss_stdgi"] = early_stopping_stdgi.best_score
+    load_model(stdgi, "./out/checkpoint/" + args.checkpoint_stdgi + ".pt")
 
     if not args.interpolate:
         decoder = Decoder(
@@ -222,47 +222,47 @@ if __name__ == "__main__":
         path="./out/checkpoint/" + args.checkpoint_decoder + ".pt",
     )
 
-    # for i in range(args.num_epochs_decoder):
-    #     if not early_stopping_decoder.early_stop:
-    #         train_loss = train_atten_decoder_fn(
-    #             stdgi,
-    #             decoder,
-    #             train_dataloader,
-    #             mse_loss,
-    #             optimizer_decoder,
-    #             device,
-    #             interpolate=args.interpolate,
-    #         )
-    #         valid_loss = 0
-    #         for valid_station in args.valid_station:
-    #             valid_dataset = AQDataSet(
-    #                 data_df=trans_df[:],
-    #                 climate_df=climate_df[:],
-    #                 location_df=location_,
-    #                 list_train_station=args.train_station,
-    #                 test_station=valid_station,
-    #                 test=True,
-    #                 input_dim=args.sequence_length,
-    #                 # output_dim=args.output_dim,
-    #                 interpolate=args.interpolate,
-    #             )
-    #             valid_dataloader = DataLoader(
-    #                 valid_dataset, batch_size=args.batch_size, shuffle=False, num_workers=8
-    #             )
-    #             valid_loss_ = test_atten_decoder_fn(
-    #                 stdgi, decoder, valid_dataloader, device, mse_loss, test=False
-    #             )
-    #             valid_loss += valid_loss_
-    #         valid_loss = valid_loss / len(args.valid_station)
-    #         early_stopping_decoder(valid_loss, decoder)
-    #         print(
-    #             "Epochs/Loss: {}/Train loss: {} / Valid loss: {}".format(
-    #                 i, train_loss, valid_loss
-    #             )
-    #         )
-    #         wandb.log({"loss/decoder_loss": train_loss})
+    for i in range(args.num_epochs_decoder):
+        if not early_stopping_decoder.early_stop:
+            train_loss = train_atten_decoder_fn(
+                stdgi,
+                decoder,
+                train_dataloader,
+                mse_loss,
+                optimizer_decoder,
+                device,
+                interpolate=args.interpolate,
+            )
+            valid_loss = 0
+            for valid_station in args.valid_station:
+                valid_dataset = AQDataSet(
+                    data_df=trans_df[:],
+                    climate_df=climate_df[:],
+                    location_df=location_,
+                    list_train_station=args.train_station,
+                    test_station=valid_station,
+                    test=True,
+                    input_dim=args.sequence_length,
+                    # output_dim=args.output_dim,
+                    interpolate=args.interpolate,
+                )
+                valid_dataloader = DataLoader(
+                    valid_dataset, batch_size=args.batch_size, shuffle=False, num_workers=8
+                )
+                valid_loss_ = test_atten_decoder_fn(
+                    stdgi, decoder, valid_dataloader, device, mse_loss, test=False
+                )
+                valid_loss += valid_loss_
+            valid_loss = valid_loss / len(args.valid_station)
+            early_stopping_decoder(valid_loss, decoder)
+            print(
+                "Epochs/Loss: {}/Train loss: {} / Valid loss: {}".format(
+                    i, train_loss, valid_loss
+                )
+            )
+            wandb.log({"loss/decoder_loss": train_loss})
     load_model(decoder, "./out/checkpoint/" + args.checkpoint_decoder + ".pt")
-    # wandb.run.summary["best_loss_decoder"] = early_stopping_decoder.best_score
+    wandb.run.summary["best_loss_decoder"] = early_stopping_decoder.best_score
 
     # test
     list_acc = []

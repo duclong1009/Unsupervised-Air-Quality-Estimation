@@ -1,1 +1,1 @@
-python train_attention_stdgi_change_input_days.py --input_dim 9 --name stdgi_change_input_days --checkpoint_decoder decoder_change_input_days --checkpoint_stdgi stdgi_change_input_days --num_epochs_stdgi 30 --num_epochs_decoder 30
+python train_attention_stdgi_change_input_days.py --input_dim 9 --name stdgi_change_input_days --checkpoint_decoder decoder_change_input_days --checkpoint_stdgi stdgi_change_input_days --num_epochs_stdgi 30 --num_epochs_decoder 30 --stdgi_noise_min 2 --stdgi_noise_max 4 --num_workers 0

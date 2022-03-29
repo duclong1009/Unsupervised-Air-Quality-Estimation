@@ -32,7 +32,7 @@ def parse_args():
     )
     parser.add_argument("--input_dim", default=9, type=int)
     parser.add_argument("--output_dim", default=1, type=int)
-    parser.add_argument("--sequence_length", default=[9,11,13,14,15,16,17,18,19,20], type=list)
+    parser.add_argument("--sequence_length", default=[20,22,24,26,28,30], type=list)
     parser.add_argument("--batch_size", default=32, type=int)
     parser.add_argument("--patience", default=5, type=int)
 
@@ -57,7 +57,10 @@ def parse_args():
     parser.add_argument("--n_layers_rnn", default=3, type=int)
     parser.add_argument("--interpolate", default=False, type=bool)
     parser.add_argument("--attention_decoder", default=False, type=bool)
+    parser.add_argument("--num_workers", default=0, type=int)
     # parser.add_argument("--loss", type=str, default="mse")
+    parser.add_argument("--stdgi_noise_min", default=0.4, type=float)
+    parser.add_argument("--stdgi_noise_max", default=0.7, type=float)
     parser.add_argument("--name", type=str)
     parser.add_argument(
         "--climate_features",
@@ -109,7 +112,7 @@ if __name__ == "__main__":
         )
 
         train_dataloader = DataLoader(
-            train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8
+            train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers
         )
         # config["loss"] = 'mse'
         wandb.init(
@@ -127,6 +130,8 @@ if __name__ == "__main__":
                 en_hid1=args.en_hid1,
                 en_hid2=args.en_hid2,
                 dis_hid=args.dis_hid,
+                stdgi_noise_min=args.stdgi_noise_min,
+                stdgi_noise_max=args.stdgi_noise_max
             ).to(device)
         else:
             stdgi = InterpolateAttention_STDGI(
@@ -243,7 +248,7 @@ if __name__ == "__main__":
                         interpolate=args.interpolate,
                     )
                     valid_dataloader = DataLoader(
-                        valid_dataset, batch_size=args.batch_size, shuffle=False, num_workers=8
+                        valid_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers
                     )
                     valid_loss_ = test_atten_decoder_fn(
                         stdgi, decoder, valid_dataloader, device, mse_loss, test=False
@@ -279,7 +284,7 @@ if __name__ == "__main__":
                 interpolate=args.interpolate,
             )
             test_dataloader = DataLoader(
-                test_dataset, batch_size=args.batch_size, shuffle=False,num_workers=8
+                test_dataset, batch_size=args.batch_size, shuffle=False,num_workers=args.num_workers
             )
             # breakpoint()
             list_prd, list_grt,_ = test_atten_decoder_fn(
