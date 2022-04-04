@@ -79,6 +79,7 @@ class TemporalGCN(torch.nn.Module):
         self.add_self_loops = add_self_loops
         self.batch_size = batch_size
         # self.config = config
+        # breakpoint()
         self._create_parameters_and_layers()
 
     def _create_update_gate_parameters_and_layers(self):

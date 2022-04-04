@@ -36,7 +36,7 @@ def parse_args():
     parser.add_argument("--batch_size", default=32, type=int)
     parser.add_argument("--patience", default=5, type=int)
     parser.add_argument("--lr_stdgi", default=5e-3, type=float)
-    parser.add_argument("--num_epochs_stdgi", default=1, type=int)
+    parser.add_argument("--num_epochs_stdgi", default=30, type=int)
     parser.add_argument("--output_stdgi", default=60, type=int)
     parser.add_argument("--checkpoint_stdgi", default="stdgi", type=str)
     parser.add_argument("--output_path", default="./out/", type=str)
@@ -45,14 +45,14 @@ def parse_args():
     parser.add_argument("--dis_hid", default=6, type=int)
     parser.add_argument("--act_fn", default="relu", type=str)
     parser.add_argument("--delta_stdgi", default=0, type=float)
-    parser.add_argument("--num_epochs_decoder", default=1, type=int)
+    parser.add_argument("--num_epochs_decoder", default=30, type=int)
     parser.add_argument("--lr_decoder", default=5e-3, type=float)
     parser.add_argument("--checkpoint_decoder", default="decoder", type=str)
     parser.add_argument("--delta_decoder", default=0, type=float)
     parser.add_argument("--cnn_hid_dim", default=64, type=int)
     parser.add_argument("--fc_hid_dim", default=128, type=int)
     parser.add_argument("--rnn_type", default="LSTM", type=str)
-    parser.add_argument("--n_layers_rnn", default=3, type=int)
+    parser.add_argument("--n_layers_rnn", default=1, type=int)
     parser.add_argument("--interpolate", default=False, type=bool)
     parser.add_argument("--attention_decoder", default=False, type=bool)
     # parser.add_argument("--loss", type=str, default="mse")
@@ -91,6 +91,7 @@ if __name__ == "__main__":
     comb_arr, location_, station, features_name = get_data_array(
         file_path, args.climate_features
     )
+    print(station)
     trans_df, climate_df, scaler = preprocess_pipeline(comb_arr)
     config["features"] = features_name
     # args.train_station = [4, 17, 19, 21, 24, 26,16, 13,1, 2, 5, 9, 10, 14]
@@ -288,6 +289,7 @@ if __name__ == "__main__":
         list_prd, list_grt, _ = test_atten_decoder_fn(
             stdgi, decoder, test_dataloader, device,mse_loss, args.interpolate, scaler
         )
+        breakpoint()
         mae, mse, mape, rmse, r2, corr = cal_acc(list_prd, list_grt)
         # breakpoint()
         list_acc.append([test_station, mae, mse, mape, rmse, r2, corr])

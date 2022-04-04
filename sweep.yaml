@@ -1,4 +1,4 @@
-program: train_args.py
+program: train_attention_stdgi_test_wo_ssa.py
 method: grid
 metric:
   name: mape
@@ -6,13 +6,15 @@ metric:
 parameters:
   batch_size:
     values: [16,32,64]
+  lr_stdgi:
+    values: [0.001, 0.005, 0.0001, 0.00005]
   lr_decoder:
-    values: [0.001, 0.005, 0.0001, 0.00005, 0.00001]
-  lr_decay_ratio:
-    values: [0.1, 0.5, 0.9]
+    values: [0.001, 0.005, 0.0001, 0.00005]
   cnn_hid_dim:
     values: [64,128,256]
   fc_hid_dim:
     values: [64,128,256]
-  n_layers_rnn:
-    values: [1,2,3]
+  en_hid1:
+    values: [64,128,256]
+  en_hid2:
+    values: [64,128,256]

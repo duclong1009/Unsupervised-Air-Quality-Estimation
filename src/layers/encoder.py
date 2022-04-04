@@ -45,6 +45,7 @@ class Attention_Encoder(nn.Module):
         self.in_dim = hid_ft1
         self.hid_dim = hid_ft2
         self.out_dim = out_ft
+        # breakpoint()
         self.fc = nn.Linear(in_ft, hid_ft1)
         self.rnn = nn.LSTM(8 * hid_ft1,8 * hid_ft1, batch_first=False, num_layers=1)
         # self.attn = AttentionLSTM(hid_ft1, 120, hid_ft1, 12, 0.1)

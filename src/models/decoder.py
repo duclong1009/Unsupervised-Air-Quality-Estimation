@@ -28,6 +28,7 @@ class Decoder(nn.Module):
         self.linear2 = nn.Linear(fc_hid_dim, out_ft)
         self.relu = nn.ReLU()
         self.fc = nn.Linear(in_ft, cnn_hid_dim)
+        
     def forward(self, x, h, l,climate):
         """
         x.shape = steps x (n1-1) x num_ft
