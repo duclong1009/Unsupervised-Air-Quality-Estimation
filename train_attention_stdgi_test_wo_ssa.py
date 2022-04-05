@@ -98,9 +98,9 @@ if __name__ == "__main__":
     # args.valid_station =[0, 6, 22, 23, 25,3, 29,18, 27, 15]
     # args.test_station = [8, 12, 7,20,11, 28]
     test_name = 'test1'
-    args.train_station = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
-    args.valid_station =[14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
-    args.test_station = [24, 25, 26, 27, 28, 29]    
+    args.train_station = [0,8,12,21,23,24,20,29,1,2,5,14,15,28]
+    args.valid_station =[4,6,7,19,22,16,13,9,11,27]
+    args.test_station = [17,25,26,3,10,18]    
     train_dataset = AQDataSet(
         data_df=trans_df,
         climate_df=climate_df,
@@ -111,14 +111,14 @@ if __name__ == "__main__":
     )
 
     train_dataloader = DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8
+        train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0
     )
 
     # config["loss"] = 'mse'
     wandb.init(
         entity="aiotlab",
         project="Spatial_PM2.5",
-        group="Ablation_Study_AQ",
+        group="Ablation_Study_AQ_test2",
         name=f"{args.name}",
         config=config,
     )
@@ -248,7 +248,7 @@ if __name__ == "__main__":
                     interpolate=args.interpolate,
                 )
                 valid_dataloader = DataLoader(
-                    valid_dataset, batch_size=args.batch_size, shuffle=False, num_workers=8
+                    valid_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0
                 )
                 valid_loss_ = test_atten_decoder_fn(
                     stdgi, decoder, valid_dataloader, device, mse_loss, test=False
@@ -283,7 +283,7 @@ if __name__ == "__main__":
             interpolate=args.interpolate,
         )
         test_dataloader = DataLoader(
-            test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=8
+            test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0
         )
         # breakpoint()
         list_prd, list_grt, _ = test_atten_decoder_fn(
