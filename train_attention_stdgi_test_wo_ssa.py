@@ -289,7 +289,7 @@ if __name__ == "__main__":
         list_prd, list_grt, _ = test_atten_decoder_fn(
             stdgi, decoder, test_dataloader, device,mse_loss, args.interpolate, scaler
         )
-        breakpoint()
+        # breakpoint()
         mae, mse, mape, rmse, r2, corr = cal_acc(list_prd, list_grt)
         # breakpoint()
         list_acc.append([test_station, mae, mse, mape, rmse, r2, corr])
