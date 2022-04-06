@@ -263,6 +263,10 @@ if __name__ == "__main__":
             )
             wandb.log({"loss/decoder_loss": train_loss})
     load_model(decoder, "./out/checkpoint/" + args.checkpoint_decoder + ".pt")
+    for name, param in decoder.named_parameters():
+        if param.requires_grad:
+            print(name, param.data)
+    breakpoint()
     wandb.run.summary["best_loss_decoder"] = early_stopping_decoder.best_score
 
     # test
@@ -289,6 +293,9 @@ if __name__ == "__main__":
         list_prd, list_grt, _ = test_atten_decoder_fn(
             stdgi, decoder, test_dataloader, device,mse_loss, args.interpolate, scaler
         )
+        output_arr = np.concatenate((np.array(list_grt).reshape(-1,1), np.array(list_prd).reshape(-1,1)), axis=1)
+        out_df = pd.DataFrame(output_arr, columns=["ground_truth", "prediction"])
+        out_df.to_csv(f'output/Station_{test_station}.csv')
         # breakpoint()
         mae, mse, mape, rmse, r2, corr = cal_acc(list_prd, list_grt)
         # breakpoint()
