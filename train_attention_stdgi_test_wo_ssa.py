@@ -263,10 +263,10 @@ if __name__ == "__main__":
             )
             wandb.log({"loss/decoder_loss": train_loss})
     load_model(decoder, "./out/checkpoint/" + args.checkpoint_decoder + ".pt")
-    for name, param in decoder.named_parameters():
-        if param.requires_grad:
-            print(name, param.data)
-    breakpoint()
+    # for name, param in decoder.named_parameters():
+    #     if param.requires_grad:
+    #         print(name, param.data)
+    # breakpoint()
     wandb.run.summary["best_loss_decoder"] = early_stopping_decoder.best_score
 
     # test

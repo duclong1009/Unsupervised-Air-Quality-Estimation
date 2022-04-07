@@ -16,8 +16,8 @@ class Decoder(nn.Module):
             self.rnn = nn.LSTM(in_ft, in_ft, batch_first=False, num_layers=n_layers_rnn)
         else:
             self.rnn = nn.RNN(in_ft, in_ft, batch_first=False, num_layers=n_layers_rnn)
-        self.selector2 = nn.Linear(n_features, n_features)
-        self.selector1 = nn.Linear(9,9)
+        # self.selector2 = torch.nn.Parameter(torch.ones(1,3))
+        # self.selector1 = torch.nn.Parameter(torch.ones(1,9))
         # self.cnn = nn.Conv1d(
         #     in_channels=in_ft,
         #     out_channels=cnn_hid_dim,
@@ -37,8 +37,9 @@ class Decoder(nn.Module):
         h.shape = steps x (n1-1) x latent_dim
         l.shape = (n1-1) x 1 = (27* 1)
         """
-        x = self.relu(self.selector1(x))
-        climate =self.relu(self.selector2(climate))
+        # breakpoint()
+        # x = self.relu(x * self.selector1)
+        # climate =self.relu(climate * self.selector2)
         batch_size = x.shape[1]
         time_st = x.shape[0]
         l_ = l / l.sum()
