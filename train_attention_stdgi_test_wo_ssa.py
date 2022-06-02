@@ -78,7 +78,7 @@ def parse_args():
     parser.add_argument("--log_wandb", action="store_false")
     parser.add_argument(
         "--climate_features",
-        default=["2m_temperature", "surface_pressure", "evaporation"],
+        default=["2m_temperature", "surface_pressure", "evaporation", "wind_speed"],
         type=list,
     )
     parser.add_argument(
