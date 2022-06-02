@@ -1,4 +1,4 @@
-from builtins import breakpoint
+# from builtins import breakpoint
 from tqdm.auto import tqdm
 import torch
 
@@ -250,16 +250,15 @@ def train_egcn(
         # breakpoint()
         x = data["X"][:,-1,:,:].to(device).float()
         G = data["G"][:,-1,:,:,:].to(device).float()
-        
-        lbl_1 = torch.ones(output.shape[0], output.shape[1], 1)
-        lbl_2 = torch.zeros(output.shape[0], output.shape[1], 1)
-        lbl = torch.cat((lbl_1, lbl_2), -1).to(device)
         try:
             output = stdgi(x, x, G)
+            lbl_1 = torch.ones(output.shape[0], output.shape[1], 1)
+            lbl_2 = torch.zeros(output.shape[0], output.shape[1], 1)
+            lbl = torch.cat((lbl_1, lbl_2), -1).to(device)
             loss = criterion(output, lbl)
             loss.backward()
         except:
-            breakpoint()
+            import pdb; pdb.set_trace()
         optim.step()
         epoch_loss += loss
         

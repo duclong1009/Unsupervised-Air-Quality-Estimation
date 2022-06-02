@@ -1,7 +1,6 @@
-from builtins import breakpoint
+# from builtins import breakpoint
 import torch
 import torch.nn as nn
-
 
 class EGCN_layer(nn.Module):
     def __init__(self, in_channels, hid_dim,output_dim,p) -> None:
@@ -9,40 +8,41 @@ class EGCN_layer(nn.Module):
         self.linear1 = nn.Linear(in_channels, hid_dim)
         self.activation = nn.ReLU()
         self.LeakyReLU = nn.LeakyReLU()
+        self.sigmoid = nn.Sigmoid()
         self.linear2 = nn.ModuleList([nn.Linear(in_channels, hid_dim)  for i in range(p)])
         self.linear3 = nn.ModuleList([nn.Linear(in_channels, hid_dim)for i in range(p)])
         self.linear4 = nn.ModuleList([nn.Linear(hid_dim * 2, 1)for i in range(p)])
         self.p = p
         self.last_liner = nn.Linear(hid_dim *p, output_dim)
+
     def forward(self, x, e):
         """
         :param x: [batch,num_nodes, n_fts]
         :param e: [batch,num_nodes, num_nodes,n_channels]
         """
-        # breakpoint()
         list_x = []
         n_channels = e.shape[-1]
-        gl = self.linear1(x)
+        gl = self.linear1(x) # (8)
         new_e = torch.zeros_like(e)
         for i in range(n_channels):
             # breakpoint()
-            coef = self._atten(x,i)
-            new_e[:,:,:,i] = coef * e[:,:,:,i]#(9)
+            coef = self._atten(x,i) # (11)
+            new_e[:,:,:,i] = coef * e[:,:,:,i] # (9)
             x_i = torch.bmm(coef,gl)
-            # x_i = torch.bmm(new_e[:,:,:,i],gl) #(7)
+            # x_i = torch.bmm(new_e[:,:,:,i],gl) 
             list_x.append(x_i)
-        res_x = torch.concat(list_x,dim=-1)
-        new_e = self.DS(new_e)
+        res_x = torch.concat(list_x,dim=-1) #(7)
+        new_e = self.DS(new_e) # (10)
         res_x = self.last_liner(res_x)
-        return res_x,new_e
+        return res_x, new_e
 
-    def _atten(self, x,idx):
+    def _atten(self, x,idx): # fl( Xi(l-1), Xj(l-1) )
         n_nodes = x.shape[1]
         x1 = self.linear2[idx](x).unsqueeze(1).expand(-1,n_nodes, -1, -1)
         x2 = self.linear3[idx](x).unsqueeze(2).expand(-1,-1, n_nodes, -1)
         x3 = self.LeakyReLU(self.linear4[idx](torch.cat([x1, x2], dim=-1))) # (seq_len, n_nodes, n_nodes, n_channels)     
         x3 = torch.squeeze(x3,-1) # (seq_len, n_nodes, n_nodes)
-        return nn.ReL(x3)
+        return self.sigmoid(x3)
 
     def DS(self,e):
         """
@@ -76,8 +76,8 @@ class EGCN(nn.Module):
 
     def forward(self, x, e):
         """
-        :param x: [num_nodes, n_fts]
-        :param e: [num_nodes, num_nodes,n_channels]
+            :param x: [num_nodes, n_fts]
+            :param e: [num_nodes, num_nodes,n_channels]
         """
         # breakpoint()
         e = self.DS(e)
@@ -102,7 +102,6 @@ class EGCN(nn.Module):
         new_e_ = new_e_.unsqueeze(1).expand(-1,n_nodes,-1)
         new_e = new_e/ new_e_
         new_e_T = torch.transpose(new_e,1,2)
-        # breakpoint()
         new_e = torch.bmm(new_e,new_e_T)
         new_e = new_e.reshape(raw_shape[0],raw_shape[3],raw_shape[1],raw_shape[2])
         new_e = torch.permute(new_e,(0,2,3,1))
@@ -113,4 +112,3 @@ if __name__ == '__main__':
     x = torch.rand(12,6,10)
     e = torch.rand(12,6,6,4)
     model(x,e)
-    breakpoint()

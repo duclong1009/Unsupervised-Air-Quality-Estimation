@@ -12,6 +12,8 @@ from src.modules.train.test import cal_acc, test_atten_decoder_fn
 from utils.ultilities import config_seed, load_model, save_checkpoint, EarlyStopping
 from utils.loader import get_data_array, preprocess_pipeline, AQDataSet
 from torch.utils.data import DataLoader
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+
 from src.models.stdgi import EGCN_STDGI, Attention_STDGI, InterpolateAttention_STDGI
 from src.models.decoder import (
     Decoder,
@@ -105,11 +107,14 @@ if __name__ == "__main__":
     trans_df, climate_df, scaler = preprocess_pipeline(comb_arr)
     config["features"] = features_name
     test_name = "test1"
-    args.train_station = [ 92,  18,  38,  37,  16,  76,  27, 131,  35,  22,  81,  80,  30,
-        82, 129,  49, 101, 102, 130, 107,  99]
-    args.valid_station = [122, 100,  42,  26,  36, 113,  74, 126, 132, 116,  72, 117, 104,
-        68,   0]
-    args.test_station = [69, 6, 135, 71, 137, 41, 73, 28, 29, 127]
+    # args.train_station = [ 92,  18,  38,  37,  16,  76,  27, 131,  35,  22,  81,  80,  30,
+    #     82, 129,  49, 101, 102, 130, 107,  99]
+    # args.valid_station = [122, 100,  42,  26,  36, 113,  74, 126, 132, 116,  72, 117, 104,
+    #     68,   0]
+    # args.test_station = [69, 6, 135, 71, 137, 41, 73, 28, 29, 127]
+    args.train_station = [15, 17, 19, 21, 48, 73, 96, 114, 131, 134, 137]
+    args.valid_station = [20, 34, 56, 85]
+    args.test_station = [97 ,98,134 ]
     train_dataset = AQDataSet(
         data_df=trans_df[:],
         climate_df=climate_df,
@@ -151,12 +156,15 @@ if __name__ == "__main__":
     stdgi_optimizer_d = torch.optim.Adam(
         stdgi.disc.parameters(), lr=args.lr_stdgi, weight_decay=l2_coef
     )
+
     early_stopping_stdgi = EarlyStopping(
         patience=args.patience,
         verbose=True,
         delta=args.delta_stdgi,
         path="./out/checkpoint/" + args.checkpoint_stdgi + ".pt",
     )
+    scheduler = ReduceLROnPlateau(stdgi_optimizer, 'min', factor=0.5, patience=2)
+
     logging.info(
         f"Training stdgi ||  interpolate {args.interpolate} || attention decoder {args.attention_decoder} || epochs {args.num_epochs_stdgi} || lr {args.lr_stdgi}"
     )
@@ -171,6 +179,7 @@ if __name__ == "__main__":
                 device,
             )
             early_stopping_stdgi(loss, stdgi)
+            scheduler.step(loss)
             if args.log_wandb:wandb.log({"loss/stdgi_loss": loss})
             logging.info("Epochs/Loss: {}/ {}".format(i, loss))
     if args.log_wandb:wandb.run.summary["best_loss_stdgi"] = early_stopping_stdgi.best_score

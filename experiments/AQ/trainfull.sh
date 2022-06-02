@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=0 python train_attention_stdgi_test_wo_ssa.py --input_dim 8 --stdgi_noise_min 0.4 --stdgi_noise_max 0.8 --name gede --en_hid1 64 --en_hid2 64 --checkpoint_decoder decoder_gedeAQ --checkpoint_stdgi stdgi_gedeAQ --num_epochs_stdgi 30 --num_epochs_decoder 30 --model_type gede 
