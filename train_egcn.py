@@ -1,4 +1,5 @@
 import argparse
+from distutils.util import copydir_run_2to3
 import torch
 import torch.nn as nn
 import numpy as np
@@ -11,26 +12,15 @@ from src.modules.train.test import cal_acc, test_atten_decoder_fn
 from utils.ultilities import config_seed, load_model, save_checkpoint, EarlyStopping
 from utils.loader import get_data_array, preprocess_pipeline, AQDataSet
 from torch.utils.data import DataLoader
-from src.models.stdgi import Attention_STDGI, InterpolateAttention_STDGI
+from src.models.stdgi import EGCN_STDGI, Attention_STDGI, InterpolateAttention_STDGI
 from src.models.decoder import (
     Decoder,
     InterpolateAttentionDecoder,
     InterpolateDecoder,
     WoCli_Decoder,
 )
-from src.modules.train.train import train_atten_decoder_fn
+from src.modules.train.train import train_atten_decoder_fn, train_egcn, train_egcn_decoder_fn
 from src.modules.train.train import train_atten_stdgi
-
-
-def print_mem():
-    # import psutil
-    # print(psutil.cpu_percent())
-    # print(psutil.virtual_memory())  # physical memory usage
-    # print('memory % used:', psutil.virtual_memory()[2])
-    import os, psutil
-
-    process = psutil.Process(os.getpid())
-    print(process.memory_info().rss)  # in bytes
 
 
 def parse_args():
@@ -127,6 +117,7 @@ if __name__ == "__main__":
         list_train_station=args.train_station,
         input_dim=args.sequence_length,
         interpolate=args.interpolate,
+        corr=corr,
     )
 
     train_dataloader = DataLoader(
@@ -134,16 +125,15 @@ if __name__ == "__main__":
     )
 
     # config["loss"] = 'mse'
-    if args.log_wandb:
-        wandb.init(
-            entity="aiotlab",
-            project="Spatial_PM2.5",
-            group="merged_AQ",
-            name=f"{args.name}",
-            config=config,
-        )
+    if args.log_wandb:wandb.init(
+        entity="aiotlab",
+        project="Spatial_PM2.5",
+        group="merged_AQ",
+        name=f"{args.name}",
+        config=config,
+    )
     # Model Stdgi
-    stdgi = Attention_STDGI(
+    stdgi = EGCN_STDGI(
         in_ft=args.input_dim,
         out_ft=args.output_stdgi,
         en_hid1=args.en_hid1,
@@ -151,13 +141,12 @@ if __name__ == "__main__":
         dis_hid=args.dis_hid,
         stdgi_noise_min=args.stdgi_noise_min,
         stdgi_noise_max=args.stdgi_noise_max,
-        model_type=args.model_type,
     ).to(device)
     l2_coef = 0.0
     mse_loss = nn.MSELoss()
     bce_loss = nn.BCELoss()
-    stdgi_optimizer_e = torch.optim.Adam(
-        stdgi.encoder.parameters(), lr=args.lr_stdgi, weight_decay=l2_coef
+    stdgi_optimizer = torch.optim.Adam(
+        stdgi.parameters(), lr=args.lr_stdgi, weight_decay=l2_coef
     )
     stdgi_optimizer_d = torch.optim.Adam(
         stdgi.disc.parameters(), lr=args.lr_stdgi, weight_decay=l2_coef
@@ -172,26 +161,19 @@ if __name__ == "__main__":
         f"Training stdgi ||  interpolate {args.interpolate} || attention decoder {args.attention_decoder} || epochs {args.num_epochs_stdgi} || lr {args.lr_stdgi}"
     )
     train_stdgi_loss = []
-    print_mem()
     for i in range(args.num_epochs_stdgi):
         if not early_stopping_stdgi.early_stop:
-            loss = train_atten_stdgi(
+            loss = train_egcn(
                 stdgi,
                 train_dataloader,
-                stdgi_optimizer_e,
-                stdgi_optimizer_d,
+                stdgi_optimizer,
                 bce_loss,
                 device,
-                interpolate=args.interpolate,
             )
             early_stopping_stdgi(loss, stdgi)
-            if args.log_wandb:
-                wandb.log({"loss/stdgi_loss": loss})
+            if args.log_wandb:wandb.log({"loss/stdgi_loss": loss})
             logging.info("Epochs/Loss: {}/ {}".format(i, loss))
-            print(f"Epoch_{i} -------------------------------")
-            print_mem()
-    if args.log_wandb:
-        wandb.run.summary["best_loss_stdgi"] = early_stopping_stdgi.best_score
+    if args.log_wandb:wandb.run.summary["best_loss_stdgi"] = early_stopping_stdgi.best_score
     load_model(stdgi, "./out/checkpoint/" + args.checkpoint_stdgi + ".pt")
     if args.model_type == "woclimate":
         decoder = WoCli_Decoder(
@@ -228,7 +210,7 @@ if __name__ == "__main__":
 
     for i in range(args.num_epochs_decoder):
         if not early_stopping_decoder.early_stop:
-            train_loss = train_atten_decoder_fn(
+            train_loss = train_egcn_decoder_fn(
                 stdgi,
                 decoder,
                 train_dataloader,
@@ -240,7 +222,7 @@ if __name__ == "__main__":
             valid_loss = 0
             for valid_station in args.valid_station:
                 valid_dataset = AQDataSet(
-                    data_df=trans_df,
+                    data_df=trans_df[:],
                     climate_df=climate_df,
                     location_df=location_,
                     list_train_station=args.train_station,
@@ -249,6 +231,7 @@ if __name__ == "__main__":
                     input_dim=args.sequence_length,
                     # output_dim=args.output_dim,
                     interpolate=args.interpolate,
+                    corr=corr
                 )
                 valid_dataloader = DataLoader(
                     valid_dataset,
@@ -267,15 +250,13 @@ if __name__ == "__main__":
                     i, train_loss, valid_loss
                 )
             )
-            if args.log_wandb:
-                wandb.log({"loss/decoder_loss": train_loss})
+            if args.log_wandb:wandb.log({"loss/decoder_loss": train_loss})
     load_model(decoder, "./out/checkpoint/" + args.checkpoint_decoder + ".pt")
     # for name, param in decoder.named_parameters():
     #     if param.requires_grad:
     #         print(name, param.data)
     # breakpoint()
-    if args.log_wandb:
-        wandb.run.summary["best_loss_decoder"] = early_stopping_decoder.best_score
+    if args.log_wandb:wandb.run.summary["best_loss_decoder"] = early_stopping_decoder.best_score
 
     # test
     list_acc = []
@@ -285,7 +266,7 @@ if __name__ == "__main__":
     for test_station in args.test_station:
         test_dataset = AQDataSet(
             data_df=trans_df,
-            climate_df=climate_df,
+            climate_df=climate_df[:],
             location_df=location_,
             list_train_station=args.train_station,
             test_station=test_station,
@@ -293,6 +274,7 @@ if __name__ == "__main__":
             input_dim=args.sequence_length,
             # output_dim=args.output_dim,
             interpolate=args.interpolate,
+            corr=corr
         )
         test_dataloader = DataLoader(
             test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0
@@ -306,12 +288,11 @@ if __name__ == "__main__":
         )
         out_df = pd.DataFrame(output_arr, columns=["ground_truth", "prediction"])
         out_df.to_csv(f"output/Station_{test_station}.csv")
-        mae, mse, mape, rmse, r2, corr,mdape = cal_acc(list_prd, list_grt)
-        list_acc.append([test_station, mae, mse, mape,mdape, rmse, r2, corr])
+        mae, mse, mape,mdape, rmse, r2, corr_ = cal_acc(list_prd, list_grt)
+        list_acc.append([test_station, mae, mse, mape,mdape, rmse, r2, corr_])
         predict[test_station] = {"grt": list_grt, "prd": list_prd}
         print("Test Accuracy: {}".format(mae, mse, corr))
-        if args.log_wandb:
-            wandb.log({f"Station_{test_station}": list_prd})
+        if args.log_wandb:wandb.log({f"Station_{test_station}": list_prd})
 
     for test_station in args.test_station:
         df = pd.DataFrame(data=predict[test_station], columns=["grt", "prd"])
@@ -325,8 +306,7 @@ if __name__ == "__main__":
         columns=["STATION", "MAE", "MSE", "MAPE","MDAPE", "RMSE", "R2", "CORR"],
     )
     print(df)
-    if args.log_wandb:
-        wandb.log({"test_acc": df})
+    if args.log_wandb:wandb.log({"test_acc": df})
     for test_station in args.test_station:
         prd = predict[test_station]["prd"]
         grt = predict[test_station]["grt"]
@@ -337,7 +317,5 @@ if __name__ == "__main__":
         ax.plot(np.arange(x), prd[:x], label="prd")
         ax.legend()
         ax.set_title(f"Tram_{test_station}")
-        if args.log_wandb:
-            wandb.log({"Tram_{}".format(test_station): wandb.Image(fig)})
-    if args.log_wandb:
-        wandb.finish()
+        if args.log_wandb:wandb.log({"Tram_{}".format(test_station): wandb.Image(fig)})
+    if args.log_wandb: wandb.finish()

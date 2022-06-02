@@ -1,3 +1,4 @@
+from builtins import breakpoint
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.preprocessing import (
     OneHotEncoder,
@@ -47,15 +48,18 @@ def get_columns(file_path):
     pm_df = df.rename(columns=res_rev)
     return res, res_rev, pm_df
 
+
 # preprocess pipeline
 def to_numeric(x):
     x_1 = x.apply(pd.to_numeric, errors="coerce")
     res = x_1.clip(lower=0)
     return res
 
+
 def remove_outlier(x):
     # remove 97th->100th percentile
     pass
+
 
 def rolling(x):
     res = []
@@ -66,80 +70,100 @@ def rolling(x):
     ans = np.array(res)
     return ans  # rolling va lay mean trong 3 timeframe gan nhat
 
+
 from sklearn.impute import KNNImputer, SimpleImputer
+
 
 def preprocess_pipeline(df):
     # 800,35,17
-    scaler = MinMaxScaler((-1,1))
+    scaler = MinMaxScaler((-1, 1))
     # import pdb; pdb.set_trace()
     # breakpoint()
-    (a,b,c) =  df.shape
+    (a, b, c) = df.shape
     res = np.reshape(df, (-1, c))
     for i in range(c):
-        threshold = np.percentile(res[:,i], 95)
-        res[:,i] = np.where(res[:,i] > threshold, threshold, res[:,i])
+        threshold = np.percentile(res[:, i], 95)
+        res[:, i] = np.where(res[:, i] > threshold, threshold, res[:, i])
     # res = np.reshape(res, (-1, b,c))
     # breakpoint()
     res = scaler.fit_transform(res)
-    res = np.reshape(res, (-1, b,c))
+    res = np.reshape(res, (-1, b, c))
     # breakpoint()
-    trans_df = res[:,:,:]
-    climate_df = res[:,:,6:]
-    return trans_df,climate_df, scaler
+    trans_df = res[:, :, :]
+    climate_df = res[:, :, 5:]
+    del res
+    return trans_df, climate_df, scaler
 
 def get_list_file(folder_path):
     from os import listdir
     from os.path import isfile, join
+
     onlyfiles = [f for f in listdir(folder_path) if isfile(join(folder_path, f))]
     return onlyfiles
+def comb_df(file_path, pm_df, res):
+    list_file = get_list_file(file_path)
+    list_file.remove("PM2.5.csv")
+    list_file.remove("location.csv")
+    column = [res[i] for i in list(pm_df.columns)[1:]]
+    comb_arr = pm_df.iloc[:, 1:].to_numpy()
+    comb_arr = np.expand_dims(comb_arr, -1)
+    for file_name in list_file:
+        df = pd.read_csv(file_path + file_name)
+        # preprocess()
+        df = df.fillna(5)
+        df = df[column]
+        arr = df.to_numpy()
+        arr = np.expand_dims(arr, -1)
+        comb_arr = np.concatenate((comb_arr, arr), -1)
+    del arr
+    return comb_arr, column
 
-def comb_df(file_path,pm_df,res):
-  list_file = get_list_file(file_path)
-  list_file.remove("PM2.5.csv")
-  list_file.remove("location.csv")
-  column = [res[i] for i in list(pm_df.columns)[1:]]
-  comb_arr = pm_df.iloc[:,1:].to_numpy()
-  comb_arr = np.expand_dims(comb_arr,-1)
-  for file_name in list_file:
-    df = pd.read_csv(file_path + file_name)
-    # preprocess()
-    df = df.fillna(5)
-    df = df[column]
-    arr = df.to_numpy()
-    arr = np.expand_dims(arr,-1)
-    comb_arr = np.concatenate((comb_arr,arr),-1)
-  return comb_arr,column
 
 from torch.utils.data import Dataset
 
+
 def location_arr(file_path, res):
-    location_df = pd.read_csv(file_path +"location.csv")
+    location_df = pd.read_csv(file_path + "location.csv")
     list_location = []
     for i in res.keys():
-        loc = location_df[location_df['location'] == res[i]].to_numpy()[0,1:]
-        list_location.append([loc[1],loc[0]])
+        loc = location_df[location_df["location"] == res[i]].to_numpy()[0, 1:]
+        list_location.append([loc[1], loc[0]])
+    del loc
     return np.array(list_location)
 
-def get_data_array(file_path,columns2):
-    columns1 = ['PM2.5','PM10','O3','SO2','NO2','NOXasNO2']
+
+def get_data_array(file_path, columns2):
+    # columns1 = ["PM2.5", "PM10", "O3", "SO2", "NO2", "CO", "AQI"]
+    columns1 = ["PM2.5", "PM10", "O3", "SO2", "NO2"]
     columns = columns1 + columns2
     location_df = pd.read_csv(file_path + "location.csv")
     # breakpoint()
-    station = location_df['location'].values
-    location = location_df.values[:,1:]
-    location_ = location[:,[1,0]]
-    
+    station = location_df["station"].values
+    location = location_df.values[:, 1:]
+    location_ = location[:, [1, 0]]
+
     list_arr = []
     for i in station:
-        df = pd.read_csv(file_path  + f"{i}.csv")[columns]
-        df = df.fillna(method='ffill')
+        df = pd.read_csv(file_path + f"{i}.csv")[columns]
+        df = df.fillna(method="ffill")
         df = df.fillna(10)
         arr = df.astype(float).values
-        arr = np.expand_dims(arr,axis=1)
+        arr = np.expand_dims(arr, axis=1)
         list_arr.append(arr)
-    list_arr = np.concatenate(list_arr,axis=1)
+    list_arr = np.concatenate(list_arr, axis=1)
     # print(list_arr.shape)
-    return list_arr,location_,station, columns
+    pm2_5 = list_arr[:,:,0]
+    # pm_dff = pd.DataFrame(pm2_5)
+    # pm_dff.to_csv("AQ_pm2_5.csv")
+    # breakpoint()
+    corr = pd.DataFrame(pm2_5).corr().values
+    del df 
+    del arr
+    del location
+    del location_df
+    # breakpoint()
+    return list_arr, location_, station, columns,corr
+
 
 # from torchvision import transforms
 class AQDataSet(Dataset):
@@ -152,7 +176,8 @@ class AQDataSet(Dataset):
         input_dim,
         test_station=None,
         test=False,
-        interpolate=False
+        interpolate=False,
+        corr=None
     ) -> None:
         super().__init__()
         assert not (test and test_station == None), "pha test yeu cau nhap tram test"
@@ -167,33 +192,31 @@ class AQDataSet(Dataset):
         self.location = location_df
         self.interpolate = interpolate
         self.climate_df = climate_df
+        self.n_st = len(list_train_station) - 1
+        self.corr =corr
         # test data
         if self.test:
             test_station = int(test_station)
             lst_cols_input_test_int = list(
-                set(self.list_cols_train_int)
-                - set([self.list_cols_train_int[-1]])
+                set(self.list_cols_train_int) - set([self.list_cols_train_int[-1]])
             )
-            
+
             self.X_test = data_df[:, lst_cols_input_test_int]
-            self.l_test = self.get_distance_matrix(
+            self.l_test = self.get_reverse_distance_matrix(
                 lst_cols_input_test_int, test_station
             )
-            self.Y_test = data_df[:,test_station]
-            self.climate_test = climate_df[:,test_station]
-            if not self.interpolate:
-                self.G_test = self.get_adjacency_matrix(lst_cols_input_test_int)
-            else:
-                lst_cols_test = lst_cols_input_test_int.copy()
-                lst_cols_test.append(test_station)
-                self.G_test = self.get_adjacency_matrix(lst_cols_test)
+            self.Y_test = data_df[:, test_station]
+            self.climate_test = climate_df[:, test_station]
+            self.G_test = self.get_adjacency_matrix(lst_cols_input_test_int)
+            if self.corr is not None:
+                self.corr_matrix_test = self.get_corr_matrix(lst_cols_input_test_int)
 
     def get_distance(self, coords_1, coords_2):
         import geopy.distance
+
         return geopy.distance.geodesic(coords_1, coords_2).km
 
     def get_distance_matrix(self, list_col_train_int, target_station):
-        # import pdb; pdb.set_trace()
         matrix = []
         for i in list_col_train_int:
             matrix.append(
@@ -201,6 +224,17 @@ class AQDataSet(Dataset):
             )
         res = np.array(matrix)
         return res
+    def get_corr_matrix(self, list_station):
+        # breakpoint()
+        # print(list_station)
+        # breakpoint()
+        corr_mtr = self.corr[np.ix_(list_station,list_station)]
+        corr_mtr_ = np.expand_dims(corr_mtr.sum(-1),-1)
+        corr_mtr_ = np.repeat(corr_mtr_,corr_mtr_.shape[0],-1)
+        corr_mtr = corr_mtr/corr_mtr_
+        corr_mtr = np.expand_dims(corr_mtr,0)
+        corr_mtr = np.repeat(corr_mtr, self.input_len,0)
+        return corr_mtr
 
     def get_reverse_distance_matrix(self, list_col_train_int, target_station):
         distance_matrix = self.get_distance_matrix(list_col_train_int, target_station)
@@ -218,14 +252,17 @@ class AQDataSet(Dataset):
         adjacency_matrix = np.expand_dims(adjacency_matrix, 0)
         adjacency_matrix = np.repeat(adjacency_matrix, self.input_len, 0)
         return adjacency_matrix
-        
+
     def __getitem__(self, index: int):
+        list_G = []
         if self.test:
             x = self.X_test[index : index + self.input_len, :]
-            y = self.Y_test[index + self.input_len - 1,0]
+            y = self.Y_test[index + self.input_len - 1, 0]
             G = self.G_test
             l = self.l_test
-            climate = self.climate_test[index + self.input_len - 1,:]
+            climate = self.climate_test[index + self.input_len - 1, :]
+            if self.corr is not None:
+                list_G = [G,self.corr_matrix_test]
         else:
             # chon 1 tram ngau  nhien trong 28 tram lam target tai moi sample
             # import pdb; pdb.set_trace()
@@ -234,31 +271,41 @@ class AQDataSet(Dataset):
             lst_col_train_int = list(
                 set(self.list_cols_train_int) - set([picked_target_station_int])
             )
-            x = self.data_df[
-                index : index + self.input_len , lst_col_train_int,:
-            ]
+            x = self.data_df[index : index + self.input_len, lst_col_train_int, :]
             # x = np.expand_dims(x, -1)
-            y = self.data_df[
-                index + self.input_len - 1, picked_target_station_int,0
+            y = self.data_df[index + self.input_len - 1, picked_target_station_int, 0]
+            climate = self.climate_df[
+                index + self.input_len - 1, picked_target_station_int, :
             ]
-            climate = self.climate_df[index + self.input_len - 1, picked_target_station_int,:]
-            if not self.interpolate:
-                G = self.get_adjacency_matrix(lst_col_train_int, picked_target_station_int)
-            else:
-                new_list_col_train_int = lst_col_train_int.copy()
-                new_list_col_train_int.append(picked_target_station_int)
-                G = self.get_adjacency_matrix(new_list_col_train_int, picked_target_station_int)
-            
+            G = self.get_adjacency_matrix(
+                lst_col_train_int, picked_target_station_int
+            )
+            if self.corr is not None:
+                corr_matrix = self.get_corr_matrix(lst_col_train_int)
+                list_G = [G,corr_matrix]
             l = self.get_reverse_distance_matrix(
                 lst_col_train_int, picked_target_station_int
             )
-        sample = {"X": x,"Y": np.array([y]), "G": np.array(G), "l": np.array(l),'climate':climate}
+            
+        sample = {
+            "X": x,
+            "Y": np.array([y]),
+            # "G": np.array(G),
+            "l": np.array(l),
+            "climate": climate,
+        }
+        if self.corr is None:
+            sample["G"] = G
+        else:
+            sample["G"] = np.stack(list_G,-1)
+        # breakpoint()
         return sample
 
     def __len__(self) -> int:
         return self.data_df.shape[0] - (self.input_len)
 
-from utils.ultilities import  config_seed
+
+from utils.ultilities import config_seed
 from torch.utils.data import DataLoader
 
 
@@ -274,17 +321,15 @@ if __name__ == "__main__":
         location_df=location,
         list_train_station=[i for i in range(28)],
         input_dim=12,
-        interpolate=True
+        interpolate=True,
     )
-    train_dataloader = DataLoader(
-        train_dataset, batch_size=32, shuffle=True
-    )
+    train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 
     for v in train_dataloader:
-        print('X: ')
-        print(v['X'].size())
-        print('Y: ')
-        print(v['Y'].size())
-        print('G: ')
-        print(v['G'].size())
+        print("X: ")
+        print(v["X"].size())
+        print("Y: ")
+        print(v["Y"].size())
+        print("G: ")
+        print(v["G"].size())
         break

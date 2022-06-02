@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=2 python train_egcn.py --input_dim 10 --stdgi_noise_min 0.4 --stdgi_noise_max 0.8 --name gede --en_hid1 64 --en_hid2 64 --checkpoint_decoder decoder_gede --checkpoint_stdgi decoder_gede --num_epochs_stdgi 30 --num_epochs_decoder 30 --model_type gede --log_wandb
