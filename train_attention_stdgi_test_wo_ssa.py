@@ -120,7 +120,7 @@ if __name__ == "__main__":
     # args.valid_station = [122, 100,  42,  26,  36, 113,  74, 126, 132, 116,  72, 117, 104,
     #     68,   0]
     # args.test_station = [69, 6, 135, 71, 137, 41, 73, 28, 29, 127]
-    args.train_station = [15, 17, 19, 21, 48, 73, 96, 114, 131, 134, 137]
+    args.train_station = [15, 17, 19, 21, 48, 73, 96, 114, 131, 137]
     args.valid_station = [20, 34, 56, 85]
     args.test_station = [97 ,98,134 ]
     train_dataset = AQDataSet(
