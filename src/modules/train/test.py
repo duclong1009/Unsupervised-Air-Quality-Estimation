@@ -34,25 +34,38 @@ def test_atten_decoder_fn(
     with torch.no_grad():
         for data in tqdm(dataloader):
             batch_loss = 0
-            for index in range(data["X"].shape[0]):
-                y_grt = data["Y"][index].to(device).float()
-                x = data["X"][index][-1].unsqueeze(0).to(device).float()
-                G = data["G"][index][-1].unsqueeze(0).to(device).float()
-                l = data["l"][index].to(device).float()
-                cli = data["climate"][index].to(device).float()
-                if not interpolate:
-                    h = stdgi.embedd(x, G)
-                    y_prd = decoder(x, h, l,cli)  # 3x1x1
-                else:
-                    h, enc_hidd = stdgi.embedd(x, G.unsqueeze(0), l)
-                    y_prd = decoder(x[-1].unsqueeze(0), h, l)
-                batch_loss += criterion(torch.squeeze(y_prd), torch.squeeze(y_grt))
-                y_prd = torch.squeeze(y_prd).cpu().detach().numpy()
-                y_grt = torch.squeeze(y_grt).cpu().detach().numpy()
-                list_prd.append(y_prd)
-                list_grt.append(y_grt)
-            batch_loss = batch_loss / data["X"].shape[0]
+            y_grt = data["Y"].to(device).float()
+            x = data["X"].to(device).float()
+            G = data["G"].to(device).float()
+            l = data["l"].to(device).float()
+            cli = data['climate'].to(device).float()
+            h = stdgi.embedd(x, G)
+            y_prd = decoder(x, h, l,cli) 
+            batch_loss = criterion(torch.squeeze(y_prd), torch.squeeze(y_grt))
+            y_prd = torch.squeeze(y_prd).cpu().detach().numpy().tolist()
+            y_grt = torch.squeeze(y_grt).cpu().detach().numpy().tolist()
+            list_prd += y_prd
+            list_grt += y_grt
             epoch_loss += batch_loss.item()
+
+            # for index in range(data["X"].shape[0]):
+            #     y_grt = data["Y"][index].to(device).float()
+            #     x = data["X"][index][-1].unsqueeze(0).to(device).float()
+            #     G = data["G"][index][-1].unsqueeze(0).to(device).float()
+            #     l = data["l"][index].to(device).float()
+            #     cli = data["climate"][index].to(device).float()
+            #     if not interpolate:
+            #         h = stdgi.embedd(x, G)
+            #         y_prd = decoder(x, h, l,cli)  # 3x1x1
+            #     else:
+            #         h, enc_hidd = stdgi.embedd(x, G.unsqueeze(0), l)
+            #         y_prd = decoder(x[-1].unsqueeze(0), h, l)
+            #     batch_loss += criterion(torch.squeeze(y_prd), torch.squeeze(y_grt))
+            #     y_prd = torch.squeeze(y_prd).cpu().detach().numpy()
+            #     y_grt = torch.squeeze(y_grt).cpu().detach().numpy()
+            #     list_prd.append(y_prd)
+            #     list_grt.append(y_grt)
+            # batch_loss = batch_loss / data["X"].shape[0]
     if test:
         a_max = scaler.data_max_[0]
         a_min = scaler.data_min_[0]
