@@ -22,7 +22,7 @@ def cal_acc(y_prd, y_grt):
 
 
 def test_atten_decoder_fn(
-    stdgi, decoder, dataloader, device,criterion, interpolate=False, scaler=None,test=True
+    stdgi, decoder, dataloader, device,criterion, interpolate=False, scaler=None,test=True, args=None
 ):
     decoder.eval()
     stdgi.eval()
@@ -34,11 +34,20 @@ def test_atten_decoder_fn(
     with torch.no_grad():
         for data in tqdm(dataloader):
             batch_loss = 0
-            y_grt = data["Y"].to(device).float()
-            x = data["X"].to(device).float()
-            G = data["G"].to(device).float()
-            l = data["l"].to(device).float()
-            cli = data['climate'].to(device).float()
+
+            if args.model_type in ['gede', 'woclimate', "woaddnoise",  'wogcn']:
+                y_grt = data["Y"].to(device).float()
+                x = data["X"].to(device).float()
+                G = data["G"].to(device).float()
+                l = data["l"].to(device).float()
+                cli = data['climate'].to(device).float()
+            elif args.model_type == 'wornnencoder':
+                y_grt = data["Y"].to(device).float()
+                x = data["X"][:,-1,:,:].to(device).float()
+                G = data["G"][:,-1,:,:,:].to(device).float()
+                l = data["l"].to(device).float()
+                cli = data['climate'].to(device).float()
+            
             h = stdgi.embedd(x, G)
             y_prd = decoder(x, h, l,cli) 
             batch_loss = criterion(torch.squeeze(y_prd), torch.squeeze(y_grt))

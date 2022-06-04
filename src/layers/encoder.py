@@ -95,6 +95,7 @@ class WoGCN_Encoder(nn.Module):
         self.relu = nn.ReLU()
         self.num_input_station = num_input_station
         self.device = device 
+        
     def forward(self, x, adj):
         x_ = self.relu(self.fc(x)) 
         raw_shape = x_.shape
@@ -102,19 +103,19 @@ class WoGCN_Encoder(nn.Module):
             h = torch.zeros(1, raw_shape[0], self.hid_dim * self.num_input_station).cuda()
         else:
             h = torch.zeros(1, raw_shape[0], self.hid_dim * self.num_input_station).to(self.device)
-        lst_res = [] 
-        for i in range(raw_shape[1]):
-            x_i = x_[:,i,:,:]
-            x_i = torch.reshape(x_i,(raw_shape[0],1,-1))
-            x_i = torch.reshape(x_i,(raw_shape[0],1,-1))
-            res, h = self.rnn(x_i, h) # 32, 1 ,hid_ft * num_input
-            lst_res.append(res)
-        # res = torch.reshape(res,(raw_shape[0],1,raw_shape[2]))
-        # res = res[-1]
-        final_emb = torch.reshape(lst_res[-1].squeeze(1), (raw_shape[0], self.num_input_station, -1))
+        x_ =  torch.reshape(x_, (raw_shape[0], raw_shape[1], -1))
+        res, h = self.rnn(x_, h) # 32, 1 ,hid_ft * num_input
+        final_emb = torch.reshape(res, (raw_shape[0], raw_shape[1], self.num_input_station, -1))
         res = self.relu(final_emb)
         out = self.fc2(res)
-        
+        # for i in range(raw_shape[1]):
+        #     x_i = x_[:,i,:,:]
+        #     x_i = torch.reshape(x_i,(raw_shape[0],1,-1))
+        #     x_i = torch.reshape(x_i,(raw_shape[0],1,-1))
+        #     res, h = self.rnn(x_i, h) # 32, 1 ,hid_ft * num_input
+        #     lst_res.append(res)
+        # res = torch.reshape(res,(raw_shape[0],1,raw_shape[2]))
+        # res = res[-1]
         return out
 
 class GCN_Encoder(nn.Module):

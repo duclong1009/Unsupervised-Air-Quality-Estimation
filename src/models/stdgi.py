@@ -140,14 +140,17 @@ class EGCN_STDGI(nn.Module):
             h, _ = self.encoder(x, adj)
         elif self.model_type == 'wogcn':
             h = self.encoder(x, adj)
-            x_k = x_k[:,-1, :, :]
+            h = h[:,-1]
+            x_k = x_k[:,-1]
         else: 
             h = self.encoder(x, adj)
-            x_k = x_k[:,-1, :, :]
+            h = h[:,-1]
+            x_k = x_k[:,-1]
         x_c = self.corrupt(x_k)
         ret = self.disc(h, x_k, x_c)
         # ret = self.disc(h, x_k_[-1].unsqueeze(0), x_c[-1].unsqueeze(0))
-        return ret
+        # import pdb; pdb.set_trace()
+        return ret.squeeze()
 
     def corrupt(self, X):
         nb_nodes = X.shape[1]
