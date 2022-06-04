@@ -211,8 +211,7 @@ class AQDataSet(Dataset):
         # phan data train thi khong lien quan gi den data test 
         self.X_train = data_df[:idx_test,:, :]
         self.climate_train = climate_df[:idx_test,:, :]
-        
-        import  pdb; pdb.set_trace()
+
         # test data
         if self.test:
             # phan data test khong lien quan gi data train 
