@@ -86,22 +86,33 @@ def preprocess_pipeline(df, args):
         res[:, i] = np.where(res[:, i] > threshold, threshold, res[:, i])
     # res = np.reshape(res, (-1, b,c))
     # breakpoint()
-    res = scaler.fit_transform(res)
-    res = np.reshape(res, (-1, b, c))
+    res_ = scaler.fit_transform(res)
+    # gan lai wind_angle cho scaler
+    res_aq = res_.copy()
+    res_climate = res_.copy()
+    if args.use_wind:
+        res_climate[:,-1] = res[:,-1]
+    
+    res_aq = np.reshape(res_aq, (-1, b, c))
+    res_climate = np.reshape(res_climate, (-1, b, c))
+
+    # res = np.reshape(res, (-1, b, c))
     # breakpoint()
-    trans_df = res[:, :, :]
+    trans_df = res_aq[:, :, :]
 
     idx_climate = 5 if args.dataset == 'uk' else 7
-    climate_df = res[:, :, idx_climate:]
+    climate_df = res_climate[:, :, idx_climate:]
+    del res_aq
+    del res_climate 
     del res
     return trans_df, climate_df, scaler
 
 def get_list_file(folder_path):
     from os import listdir
     from os.path import isfile, join
-
     onlyfiles = [f for f in listdir(folder_path) if isfile(join(folder_path, f))]
     return onlyfiles
+
 def comb_df(file_path, pm_df, res):
     list_file = get_list_file(file_path)
     list_file.remove("PM2.5.csv")
@@ -120,9 +131,7 @@ def comb_df(file_path, pm_df, res):
     del arr
     return comb_arr, column
 
-
 from torch.utils.data import Dataset
-
 
 def location_arr(file_path, res):
     location_df = pd.read_csv(file_path + "location.csv")
@@ -132,7 +141,6 @@ def location_arr(file_path, res):
         list_location.append([loc[1], loc[0]])
     del loc
     return np.array(list_location)
-
 
 def get_data_array(args, file_path):
     # columns1 = ["PM2.5", "PM10", "O3", "SO2", "NO2", "CO", "AQI"]
@@ -183,6 +191,7 @@ class AQDataSet(Dataset):
         input_dim,
         test_station=None,
         test=False,
+        valid=False,
         interpolate=False,
         corr=None,
         args=None
@@ -196,6 +205,7 @@ class AQDataSet(Dataset):
         self.list_cols_train_int = list_train_station
         self.input_len = input_dim
         self.test = test
+        self.valid = valid 
         self.data_df = data_df
         self.location = location_df
         self.interpolate = interpolate
@@ -222,14 +232,34 @@ class AQDataSet(Dataset):
             
             self.X_test = data_df[idx_test:, lst_cols_input_test_int,:]
             # convert data gio theo target station 
-            if self.use_wind:
-                self.X_test = self.convert_wind(self.X_test)
+            # if self.use_wind:
+            #     self.X_test = self.convert_wind(self.X_test, lst_cols_input_test_int, test_station)
 
             self.l_test = self.get_reverse_distance_matrix(
                 lst_cols_input_test_int, test_station
             )
             self.Y_test = data_df[idx_test:, test_station, :]
             self.climate_test = climate_df[idx_test:, test_station, :]
+            self.G_test = self.get_adjacency_matrix(lst_cols_input_test_int)
+            if self.corr is not None:
+                self.corr_matrix_test = self.get_corr_matrix(lst_cols_input_test_int)
+        elif self.valid:
+            # phan data test khong lien quan gi data train 
+            test_station = int(test_station)
+            lst_cols_input_test_int = list(
+                set(self.list_cols_train_int) - set([self.list_cols_train_int[-1]])
+            )
+            
+            self.X_test = data_df[:idx_test, lst_cols_input_test_int,:]
+            # convert data gio theo target station 
+            # if self.use_wind:
+            #     self.X_test = self.convert_wind(self.X_test, lst_cols_input_test_int, test_station)
+
+            self.l_test = self.get_reverse_distance_matrix(
+                lst_cols_input_test_int, test_station
+            )
+            self.Y_test = data_df[:idx_test, test_station, :]
+            self.climate_test = climate_df[:idx_test, test_station, :]
             self.G_test = self.get_adjacency_matrix(lst_cols_input_test_int)
             if self.corr is not None:
                 self.corr_matrix_test = self.get_corr_matrix(lst_cols_input_test_int)
@@ -275,9 +305,20 @@ class AQDataSet(Dataset):
         adjacency_matrix = np.repeat(adjacency_matrix, self.input_len, 0)
         return adjacency_matrix
 
+    def convert_wind(self, x, stations, target_station):
+        pass 
+
     def __getitem__(self, index: int):
         list_G = []
         if self.test:
+            x = self.X_test[index : index + self.input_len, :]
+            y = self.Y_test[index + self.input_len - 1, 0]
+            G = self.G_test
+            l = self.l_test
+            climate = self.climate_test[index + self.input_len - 1, :]
+            if self.corr is not None:
+                list_G = [G,self.corr_matrix_test]
+        elif self.valid:
             x = self.X_test[index : index + self.input_len, :]
             y = self.Y_test[index + self.input_len - 1, 0]
             G = self.G_test
@@ -295,8 +336,8 @@ class AQDataSet(Dataset):
             )
             x = self.X_train[index : index + self.input_len, lst_col_train_int, :]
             # convert data gio theo station
-            if self.add_wind: 
-                x = self.convert_wind(x)
+            # if self.add_wind: 
+            #     x = self.convert_wind(x, lst_col_train_int, picked_target_station_int)
             # x = np.expand_dims(x, -1)
             y = self.X_train[index + self.input_len - 1, picked_target_station_int, 0]
             climate = self.climate_train[
@@ -331,11 +372,8 @@ class AQDataSet(Dataset):
             return self.X_test.shape[0] - self.input_len
         return self.X_train.shape[0] - (self.input_len)
 
-
 from utils.ultilities import config_seed
 from torch.utils.data import DataLoader
-
-
 if __name__ == "__main__":
     file_path = "../data/"
     # Preprocess and Load data

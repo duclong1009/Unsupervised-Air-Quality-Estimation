@@ -212,6 +212,6 @@ class TemporalEGCN(torch.nn.Module):
 
 if __name__ == '__main__':
     model = TemporalEGCN(in_channels=10,hid_dim=30,output_dim=60,p=4,n_layer=2)
-    x = torch.rand(12,6,10)
-    e = torch.rand(12,6,6,4)
+    x = torch.rand(32,12,6,10)
+    e = torch.rand(32,12,6,6,4)
     model(x,e)

@@ -164,19 +164,29 @@ def train_egcn_decoder_fn(stdgi, decoder, dataloader, criterion, optimizer, devi
         optimizer.zero_grad()
         batch_loss = 0
 
-        for index in range(data["X"].shape[0]):
-            y_grt = data["Y"][index].to(device).float()
-            x = data["X"][index][-1].unsqueeze(0).to(device).float()
-            G = data["G"][index][-1].unsqueeze(0).to(device).float()
-            l = data["l"][index].to(device).float()
-            cli = data['climate'][index].to(device).float()
-            h = stdgi.embedd(x, G)
-            y_prd = decoder(x[-1].unsqueeze(0), h, l,cli)  # 3x1x1
-            batch_loss += criterion(torch.squeeze(y_prd), torch.squeeze(y_grt))
-        batch_loss = batch_loss / data["X"].shape[0]
+        y_grt = data["Y"].to(device).float()
+        x = data["X"].to(device).float()
+        G = data["G"].to(device).float()
+        l = data["l"].to(device).float()
+        cli = data['climate'].to(device).float()
+        h = stdgi.embedd(x, G)
+        y_prd = decoder(x, h, l,cli)  # 3x1x1
+        batch_loss = criterion(torch.squeeze(y_prd), torch.squeeze(y_grt))
         batch_loss.backward()
         optimizer.step()
-        epoch_loss += batch_loss.item()
+        epoch_loss += batch_loss
+        # for index in range(data["X"].shape[0]):
+        #     y_grt = data["Y"].to(device).float()
+        #     # x = data["X"][index][-1].unsqueeze(0).to(device).float()
+        #     # G = data["G"][index][-1].unsqueeze(0).to(device).float()
+        #     x = data["X"][index].unsqueeze(0).to(device).float()
+        #     G = data["G"][index].unsqueeze(0).to(device).float()
+        #     l = data["l"][index].to(device).float()
+        #     cli = data['climate'][index].to(device).float()
+        #     h = stdgi.embedd(x, G)
+        #     y_prd = decoder(x, h, l,cli)  # 3x1x1
+        #     batch_loss += criterion(torch.squeeze(y_prd), torch.squeeze(y_grt))
+        # batch_loss = batch_loss / data["X"].shape[0]
     train_loss = epoch_loss / len(dataloader)
     return train_loss
     
@@ -237,8 +247,6 @@ def train_egcn_decoder_fn(stdgi, decoder, dataloader, criterion, optimizer, devi
 #         epoch_loss += e_loss
 #     return epoch_loss / len(dataloader)
 from src.layers.loss import linex_loss
-
-
 
 def train_egcn(
     stdgi, dataloader, optim, criterion, device, args

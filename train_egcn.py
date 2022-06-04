@@ -194,22 +194,22 @@ if __name__ == "__main__":
     logging.info(
         f"Training stdgi ||  interpolate {args.interpolate} || attention decoder {args.attention_decoder} || epochs {args.num_epochs_stdgi} || lr {args.lr_stdgi}"
     )
-    train_stdgi_loss = []
-    for i in range(args.num_epochs_stdgi):
-        if not early_stopping_stdgi.early_stop:
-            loss = train_egcn(
-                stdgi,
-                train_dataloader,
-                stdgi_optimizer,
-                bce_loss,
-                device,
-                args
-            )
-            early_stopping_stdgi(loss, stdgi)
-            scheduler.step(loss)
-            if args.log_wandb:wandb.log({"loss/stdgi_loss": loss})
-            logging.info("Epochs/Loss: {}/ {}".format(i, loss))
-    if args.log_wandb:wandb.run.summary["best_loss_stdgi"] = early_stopping_stdgi.best_score
+    # train_stdgi_loss = []
+    # for i in range(args.num_epochs_stdgi):
+    #     if not early_stopping_stdgi.early_stop:
+    #         loss = train_egcn(
+    #             stdgi,
+    #             train_dataloader,
+    #             stdgi_optimizer,
+    #             bce_loss,
+    #             device,
+    #             args
+    #         )
+    #         early_stopping_stdgi(loss, stdgi)
+    #         scheduler.step(loss)
+    #         if args.log_wandb:wandb.log({"loss/stdgi_loss": loss})
+    #         logging.info("Epochs/Loss: {}/ {}".format(i, loss))
+    # if args.log_wandb:wandb.run.summary["best_loss_stdgi"] = early_stopping_stdgi.best_score
     load_model(stdgi, "./out/checkpoint/" + args.checkpoint_stdgi + ".pt")
 
     if args.wo_climate: # khong dung climate embedding
@@ -221,6 +221,7 @@ if __name__ == "__main__":
             cnn_hid_dim=args.cnn_hid_dim,
             fc_hid_dim=args.fc_hid_dim,
             n_features=len(args.climate_features),
+            num_input_station=len(args.train_station)
         ).to(device)
     else:
         decoder = Decoder(
@@ -231,6 +232,7 @@ if __name__ == "__main__":
             cnn_hid_dim=args.cnn_hid_dim,
             fc_hid_dim=args.fc_hid_dim,
             n_features=len(args.climate_features),
+            num_input_station=len(args.train_station)
         ).to(device)
 
     optimizer_decoder = torch.optim.Adam(
@@ -263,11 +265,12 @@ if __name__ == "__main__":
                     location_df=location_,
                     list_train_station=args.train_station,
                     test_station=valid_station,
-                    test=True,
+                    valid=True,
                     input_dim=args.sequence_length,
                     # output_dim=args.output_dim,
                     interpolate=args.interpolate,
-                    corr=corr
+                    corr=corr,
+                    args=args
                 )
                 valid_dataloader = DataLoader(
                     valid_dataset,

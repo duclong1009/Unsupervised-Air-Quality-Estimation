@@ -48,15 +48,17 @@ class TemporalEGCNEncoder(nn.Module):
         self.out_dim = out_ft
         self.relu = nn.ReLU()
     def forward(self, x, e):
-        # import pdb; pdb.set_trace()
         x = self.relu(self.fc(x)) # 32, 12, 19, 200 
         raw_shape = x.shape
         h = torch.zeros(raw_shape[0],raw_shape[2], self.out_dim, device=torch.device('cuda')) #(1, 19, 400)
+        hs = []
         for i in range(raw_shape[1]):
             x_i = x[:,i,:,:].squeeze(1)
             e_i = e[:,i,:,:,:].squeeze(1)
             h, _ =  self.rnn_egcn(x_i, e_i, h)
-        return h
+            hs.append(h.unsqueeze(1))
+        out =  torch.cat(hs, dim=1)
+        return out 
 
 class Attention_Encoder(nn.Module):
     def __init__(self, in_ft, hid_ft1, hid_ft2, out_ft, act="relu"):

@@ -138,7 +138,6 @@ class EGCN_STDGI(nn.Module):
         # breakpoint()
         if self.model_type == 'wornnencoder':
             h, _ = self.encoder(x, adj)
-            # import pdb; pdb.set_trace()
         elif self.model_type == 'wogcn':
             h = self.encoder(x, adj)
             x_k = x_k[:,-1, :, :]

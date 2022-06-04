@@ -5,18 +5,19 @@ import torch.nn.functional as F
 
 class Decoder(nn.Module):
     def __init__(
-        self, in_ft, out_ft, n_layers_rnn=1, rnn="GRU", cnn_hid_dim=128, fc_hid_dim=64,n_features=7
+        self, in_ft, out_ft, n_layers_rnn=1, rnn="GRU", cnn_hid_dim=128, fc_hid_dim=64,n_features=7, num_input_station=7
     ):
         super(Decoder, self).__init__()
         self.in_ft = in_ft
         self.out_ft = out_ft
         self.n_layers_rnn = n_layers_rnn
+        self.num_input_stat = num_input_station  - 1
         if rnn == "GRU":
-            self.rnn = nn.GRU(in_ft, in_ft, batch_first=False, num_layers=n_layers_rnn)
+            self.rnn = nn.GRU(in_ft * (num_input_station-1), in_ft* (num_input_station-1), batch_first=True, num_layers=n_layers_rnn)
         elif rnn == "LSTM":
-            self.rnn = nn.LSTM(in_ft, in_ft, batch_first=False, num_layers=n_layers_rnn)
+            self.rnn = nn.LSTM(in_ft* (num_input_station-1), in_ft* (num_input_station-1), batch_first=True, num_layers=n_layers_rnn)
         else:
-            self.rnn = nn.RNN(in_ft, in_ft, batch_first=False, num_layers=n_layers_rnn)
+            self.rnn = nn.RNN(in_ft* (num_input_station-1), in_ft* (num_input_station-1), batch_first=True, num_layers=n_layers_rnn)
         self.embed = nn.Linear(n_features, cnn_hid_dim)
         self.linear = nn.Linear(in_features=cnn_hid_dim*2, out_features=fc_hid_dim)
         self.linear2 = nn.Linear(fc_hid_dim, out_ft)
@@ -29,22 +30,20 @@ class Decoder(nn.Module):
         h.shape = steps x (n1-1) x latent_dim
         l.shape = (n1-1) x 1 = (27* 1)
         """
-        # x = self.relu(x * self.selector1)
-        # climate =self.relu(climate * self.selector2)
-        # breakpoint()
-        batch_size = x.shape[1]
-        time_st = x.shape[0]
+        # time_st = x.shape[1]
+        batch_size = x.shape[0]
         l_ = l / l.sum()
         l_ = l_.T
-        # print(a)
-        l_ = l_.reshape(time_st, batch_size, 1)
-        x_ = torch.cat((x, h), dim=2)  # timestep x nodes x hidden feat
+        l_ = l_.reshape(batch_size, -1, 1)
+        x_ = torch.cat((x, h), dim=3)  # timestep x nodes x hidden feat
+        x_size = x_.shape
+        x_ = x_.reshape(x_size[0], x_size[1], -1)
         # hid_state = torch.zeros(1, batch_size, self.in_ft).to(DEVICE)
-        output, hid_state = self.rnn(x_) # hidden_state = (seq_len,60, 27)
+        output, hid_state = self.rnn(x_) # output = (bs, 12, 426) 
         # output = self.relu(self.fc(x_))
-        x_ = output[-1] # (1, 27, 60)
-        
-        x_ = torch.unsqueeze(x_,0) # (1, 27, 60)
+        output = output.reshape(output.shape[0], output.shape[1], self.num_input_stat, -1)
+        x_ = output[:,-1]
+        # x_ = torch.unsqueeze(x_,0) # (1, 27, 60)
         # breakpoint()
         ret = self.fc(x_)
         ret = ret.permute(0,2,1)
@@ -54,7 +53,7 @@ class Decoder(nn.Module):
         ret = torch.bmm(ret, l_) # ret= (1, 128, 27) * (1, 27, 1) = (1, 128, 1)
         ret = ret.reshape(ret.shape[0], -1) # output =  
         embed = self.embed(climate)
-        embed = embed.reshape(1, -1)
+        # embed = embed.reshape(1, -1)
         ret = torch.cat((ret, embed), dim=-1)
         ret = self.linear(ret) # (128, 1)
         ret = self.relu(ret) # (128,64)
@@ -64,18 +63,18 @@ class Decoder(nn.Module):
 
 class WoCli_Decoder(nn.Module):
     def __init__(
-        self, in_ft, out_ft, n_layers_rnn=1, rnn="GRU", cnn_hid_dim=128, fc_hid_dim=64,n_features=7
+        self, in_ft, out_ft, n_layers_rnn=1, rnn="GRU", cnn_hid_dim=128, fc_hid_dim=64,n_features=7, num_input_station=7
     ):
         super(WoCli_Decoder, self).__init__()
         self.in_ft = in_ft
         self.out_ft = out_ft
         self.n_layers_rnn = n_layers_rnn
         if rnn == "GRU":
-            self.rnn = nn.GRU(in_ft, in_ft, batch_first=False, num_layers=n_layers_rnn)
+            self.rnn = nn.GRU(in_ft* (num_input_station-1), in_ft, batch_first=False, num_layers=n_layers_rnn)
         elif rnn == "LSTM":
-            self.rnn = nn.LSTM(in_ft, in_ft, batch_first=False, num_layers=n_layers_rnn)
+            self.rnn = nn.LSTM(in_ft* (num_input_station-1), in_ft, batch_first=False, num_layers=n_layers_rnn)
         else:
-            self.rnn = nn.RNN(in_ft, in_ft, batch_first=False, num_layers=n_layers_rnn)
+            self.rnn = nn.RNN(in_ft* (num_input_station-1), in_ft, batch_first=False, num_layers=n_layers_rnn)
         # self.selector2 = torch.nn.Parameter(torch.ones(1,3))
         # self.selector1 = torch.nn.Parameter(torch.ones(1,9))
         # self.cnn = nn.Conv1d(
