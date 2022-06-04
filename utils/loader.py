@@ -205,12 +205,14 @@ class AQDataSet(Dataset):
         self.train_cpt = args.train_pct
         self.valid_cpt = args.valid_pct
         self.test_cpt = args.test_pct
+        self.use_wind = args.use_wind
 
         idx_test = int(len(data_df) * (1- self.test_cpt))
         # phan data train thi khong lien quan gi den data test 
         self.X_train = data_df[:idx_test,:, :]
         self.climate_train = climate_df[:idx_test,:, :]
         
+        import  pdb; pdb.set_trace()
         # test data
         if self.test:
             # phan data test khong lien quan gi data train 
@@ -218,8 +220,12 @@ class AQDataSet(Dataset):
             lst_cols_input_test_int = list(
                 set(self.list_cols_train_int) - set([self.list_cols_train_int[-1]])
             )
-
+            
             self.X_test = data_df[idx_test:, lst_cols_input_test_int,:]
+            # convert data gio theo target station 
+            if self.use_wind:
+                self.X_test = self.convert_wind(self.X_test)
+
             self.l_test = self.get_reverse_distance_matrix(
                 lst_cols_input_test_int, test_station
             )
@@ -289,6 +295,9 @@ class AQDataSet(Dataset):
                 set(self.list_cols_train_int) - set([picked_target_station_int])
             )
             x = self.X_train[index : index + self.input_len, lst_col_train_int, :]
+            # convert data gio theo station
+            if self.add_wind: 
+                x = self.convert_wind(x)
             # x = np.expand_dims(x, -1)
             y = self.X_train[index + self.input_len - 1, picked_target_station_int, 0]
             climate = self.climate_train[

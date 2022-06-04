@@ -156,7 +156,7 @@ if __name__ == "__main__":
     if args.log_wandb:wandb.init(
         entity="aiotlab",
         project="Spatial_PM2.5",
-        group="merged_AQ",
+        group="merged_AQ_{}".format(args.dataset),
         name=f"{args.name}",
         config=config,
     )
