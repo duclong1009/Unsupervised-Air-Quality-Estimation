@@ -66,15 +66,23 @@ def parse_args():
     # parser.add_argument("--loss", type=str, default="mse")
     parser.add_argument("--stdgi_noise_min", default=0.4, type=float)
     parser.add_argument("--stdgi_noise_max", default=0.7, type=float)
+    parser.add_argument("--train_pct", default=0.6, type=float)
+    parser.add_argument("--valid_pct", default=0.25, type=float)
+    parser.add_argument("--test_pct", default=0.15, type=float)
+    parser.add_argument("--wo_climate", action="store_true")
+    parser.add_argument("--use_wind", action="store_true")
     parser.add_argument("--name", type=str)
     parser.add_argument("--log_wandb", action="store_false")
     parser.add_argument(
         "--climate_features",
-        default=["2m_temperature", "surface_pressure", "evaporation"],
+        default=["2m_temperature", "surface_pressure", "evaporation", "total_precipitation"],
         type=list,
     )
     parser.add_argument(
-        "--model_type", type=str, choices=["gede", "wogcn", "wornnencoder", "woclimate"]
+        "--model_type", type=str, choices=["gede", "wogcn", "wornnencoder"]
+    )
+    parser.add_argument(
+        "--dataset", type=str, choices=['beijing', 'uk']
     )
     return parser.parse_args()
 
@@ -99,12 +107,20 @@ if __name__ == "__main__":
     config_seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # device = torch.device("cpu")
-    file_path = "./data/merged_AQ/"
+
+    if args.dataset == 'uk':
+        file_path = "./data/uk_AQ/"
+    elif args.dataset == 'beijing':
+        file_path = "./data/beijing_AQ/"
+    if args.use_wind:
+        args.climate_features =  ["2m_temperature", "surface_pressure", "evaporation", "total_precipitation", "wind_speed", "wind_angle"]
+    
     comb_arr, location_, station, features_name,corr = get_data_array(
-        file_path, args.climate_features
+        args, file_path
     )
-    print(station)
-    trans_df, climate_df, scaler = preprocess_pipeline(comb_arr)
+    args.input_dim = len(features_name)
+    # print(station)
+    trans_df, climate_df, scaler = preprocess_pipeline(comb_arr, args)
     config["features"] = features_name
     test_name = "test1"
     # args.train_station = [ 92,  18,  38,  37,  16,  76,  27, 131,  35,  22,  81,  80,  30,
@@ -112,9 +128,15 @@ if __name__ == "__main__":
     # args.valid_station = [122, 100,  42,  26,  36, 113,  74, 126, 132, 116,  72, 117, 104,
     #     68,   0]
     # args.test_station = [69, 6, 135, 71, 137, 41, 73, 28, 29, 127]
-    args.train_station = [15, 17, 19, 21, 48, 73, 96, 114, 131, 137]
-    args.valid_station = [20, 34, 56, 85]
-    args.test_station = [97 ,98,134 ]
+    if args.dataset == 'beijing':
+        args.train_station = [18, 11, 3, 15, 8, 1, 9]
+        args.valid_station = [12, 7, 2, 10, 13]
+        args.test_station  = [0, 4, 5, 6] 
+    elif args.dataset == 'uk':
+        args.train_station = [15, 17, 19, 21, 48, 73, 96, 114, 131]
+        args.valid_station = [20, 34, 56, 85]
+        args.test_station = [97 ,98, 134, 137]
+
     train_dataset = AQDataSet(
         data_df=trans_df[:],
         climate_df=climate_df,
@@ -123,6 +145,7 @@ if __name__ == "__main__":
         input_dim=args.sequence_length,
         interpolate=args.interpolate,
         corr=corr,
+        args=args
     )
 
     train_dataloader = DataLoader(
@@ -144,8 +167,11 @@ if __name__ == "__main__":
         en_hid1=args.en_hid1,
         en_hid2=args.en_hid2,
         dis_hid=args.dis_hid,
+        config=config,
         stdgi_noise_min=args.stdgi_noise_min,
         stdgi_noise_max=args.stdgi_noise_max,
+        p=2,
+        model_type=args.model_type
     ).to(device)
     l2_coef = 0.0
     mse_loss = nn.MSELoss()
@@ -177,6 +203,7 @@ if __name__ == "__main__":
                 stdgi_optimizer,
                 bce_loss,
                 device,
+                args
             )
             early_stopping_stdgi(loss, stdgi)
             scheduler.step(loss)
@@ -184,7 +211,8 @@ if __name__ == "__main__":
             logging.info("Epochs/Loss: {}/ {}".format(i, loss))
     if args.log_wandb:wandb.run.summary["best_loss_stdgi"] = early_stopping_stdgi.best_score
     load_model(stdgi, "./out/checkpoint/" + args.checkpoint_stdgi + ".pt")
-    if args.model_type == "woclimate":
+
+    if args.wo_climate: # khong dung climate embedding
         decoder = WoCli_Decoder(
             args.input_dim + args.output_stdgi,
             args.output_dim,
@@ -194,7 +222,6 @@ if __name__ == "__main__":
             fc_hid_dim=args.fc_hid_dim,
             n_features=len(args.climate_features),
         ).to(device)
-
     else:
         decoder = Decoder(
             args.input_dim + args.output_stdgi,
@@ -260,6 +287,7 @@ if __name__ == "__main__":
                 )
             )
             if args.log_wandb:wandb.log({"loss/decoder_loss": train_loss})
+
     load_model(decoder, "./out/checkpoint/" + args.checkpoint_decoder + ".pt")
     # for name, param in decoder.named_parameters():
     #     if param.requires_grad:
@@ -283,7 +311,8 @@ if __name__ == "__main__":
             input_dim=args.sequence_length,
             # output_dim=args.output_dim,
             interpolate=args.interpolate,
-            corr=corr
+            corr=corr,
+            args=args
         )
         test_dataloader = DataLoader(
             test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0

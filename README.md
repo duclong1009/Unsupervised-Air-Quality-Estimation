@@ -47,3 +47,4 @@ bash train.sh
 * train_attention_stdgi : Train Attention STDGI sử dụng hàm train_atten_stdgi, train_atten_decoder_fn. Sử dụng train 2 disc , 1 lần encoder
 * train_trick_gan : Sử dụng cách train 2 disc, 1 lần encoder 
 * train.py: Sử dụng cách train bình thường
+* train_egcn.py: Sử dụng encoder EGCN 

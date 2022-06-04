@@ -6,7 +6,7 @@ from src.layers.EGCN import EGCN
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
-from src.layers.encoder import BaseEncoder, Attention_Encoder, Encoder, GCN_Encoder, WoGCN_Encoder
+from src.layers.encoder import BaseEncoder, Attention_Encoder, Encoder, GCN_Encoder, WoGCN_Encoder, TemporalEGCNEncoder
 from src.layers.discriminator import Discriminator
 
 class BaseSTDGI(nn.Module):
@@ -67,7 +67,6 @@ class STDGI(nn.Module):
         h = self.encoder(x, adj)
         return h
 
-
 class Attention_STDGI(nn.Module):
     def __init__(self, in_ft, out_ft, en_hid1, en_hid2, dis_hid, act_en="relu", stdgi_noise_min=0.4, stdgi_noise_max=0.7,model_type="gede"):
         super(Attention_STDGI, self).__init__()
@@ -110,21 +109,45 @@ class Attention_STDGI(nn.Module):
         return h
 
 class EGCN_STDGI(nn.Module):
-    def __init__(self, in_ft, out_ft, en_hid1, en_hid2, dis_hid, act_en="relu", stdgi_noise_min=0.4, stdgi_noise_max=0.7,p=2):
+    def __init__(self, in_ft, out_ft, en_hid1, en_hid2, dis_hid, config, act_en="relu", stdgi_noise_min=0.4, stdgi_noise_max=0.7,p=2, model_type="gede"):
         super(EGCN_STDGI, self).__init__()
-        self.encoder = EGCN(
-                in_ft, en_hid1,out_ft,p,2
+        bs = config['batch_size']
+        self.model_type = model_type
+        num_input_station = len(config['train_station']) -1  # tru di mot tram target 
+        if model_type == "wogcn":
+            print("Init WoGCN_Encoder model ...")
+            self.encoder = WoGCN_Encoder(
+                in_ft=in_ft, hid_ft1=en_hid1, hid_ft2=en_hid2, out_ft=out_ft, num_input_station=num_input_station,act=act_en
             )
+        elif model_type == "wornnencoder":
+            print("Init EGCN model ...")
+            self.encoder = EGCN(
+                in_channels=in_ft, hid_dim=en_hid1, output_dim=out_ft, p=p, n_layer=2
+            )
+        else:
+            print("Init GEDE model ...")
+            self.encoder = TemporalEGCNEncoder(
+                in_ft, en_hid1, en_hid2, out_ft,p,2, bs, act=act_en
+            )
+        
         self.disc = Discriminator(x_ft=in_ft, h_ft=out_ft, hid_ft=dis_hid)
         self.stdgi_noise_min = stdgi_noise_min
         self.stdgi_noise_max = stdgi_noise_max 
 
     def forward(self, x, x_k, adj):
         # breakpoint()
-        h = self.encoder(x, adj)
-        h = h[-1].unsqueeze(0)
+        if self.model_type == 'wornnencoder':
+            h, _ = self.encoder(x, adj)
+            # import pdb; pdb.set_trace()
+        elif self.model_type == 'wogcn':
+            h = self.encoder(x, adj)
+            x_k = x_k[:,-1, :, :]
+        else: 
+            h = self.encoder(x, adj)
+            x_k = x_k[:,-1, :, :]
         x_c = self.corrupt(x_k)
-        ret = self.disc(h, x_k[-1].unsqueeze(0), x_c[-1].unsqueeze(0))
+        ret = self.disc(h, x_k, x_c)
+        # ret = self.disc(h, x_k_[-1].unsqueeze(0), x_c[-1].unsqueeze(0))
         return ret
 
     def corrupt(self, X):
@@ -132,9 +155,12 @@ class EGCN_STDGI(nn.Module):
         idx = np.random.permutation(nb_nodes)
         shuf_fts = X[:, idx, :]
         return np.random.uniform(self.stdgi_noise_min, self.stdgi_noise_max) * shuf_fts
-        # return shuf_fts
+
     def embedd(self, x, adj):
-        h = self.encoder(x, adj)
+        if self.model_type == 'wornnencoder':
+            h, _ = self.encoder(x, adj)
+        else:    
+            h = self.encoder(x, adj)
         return h
 
 from src.layers.encoder import InterpolateAttentionEncoder

@@ -241,24 +241,27 @@ from src.layers.loss import linex_loss
 
 
 def train_egcn(
-    stdgi, dataloader, optim, criterion, device
+    stdgi, dataloader, optim, criterion, device, args
 ):
     # wandb.watch(stdgi, criterion, log="all", log_freq=100)
     epoch_loss = 0
     stdgi.train()
     for data in tqdm(dataloader):
-        # breakpoint()
-        x = data["X"][:,-1,:,:].to(device).float()
-        G = data["G"][:,-1,:,:,:].to(device).float()
-        try:
-            output = stdgi(x, x, G)
-            lbl_1 = torch.ones(output.shape[0], output.shape[1], 1)
-            lbl_2 = torch.zeros(output.shape[0], output.shape[1], 1)
-            lbl = torch.cat((lbl_1, lbl_2), -1).to(device)
-            loss = criterion(output, lbl)
-            loss.backward()
-        except:
-            import pdb; pdb.set_trace()
+        if args.model_type in ['gede', 'woclimate', "woaddnoise",  'wogcn']:
+            x = data["X"][:,:,:,:].to(device).float()
+            G = data["G"][:,:,:,:,:].to(device).float()
+        elif args.model_type == 'wornnencoder':
+            x = data["X"][:,-1,:,:].to(device).float()
+            G = data["G"][:,-1,:,:,:].to(device).float()
+        # try:
+        output = stdgi(x, x, G)
+        lbl_1 = torch.ones(output.shape[0], output.shape[1], 1)
+        lbl_2 = torch.zeros(output.shape[0], output.shape[1], 1)
+        lbl = torch.cat((lbl_1, lbl_2), -1).to(device)
+        loss = criterion(output, lbl)
+        loss.backward()
+        # except:
+        #     import pdb; pdb.set_trace()
         optim.step()
         epoch_loss += loss
         

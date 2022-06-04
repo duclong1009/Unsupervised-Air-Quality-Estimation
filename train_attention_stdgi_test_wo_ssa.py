@@ -4,6 +4,7 @@ import torch.nn as nn
 import numpy as np
 import random
 from tqdm.notebook import tqdm
+import os 
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -11,7 +12,7 @@ from src.modules.train.test import cal_acc, test_atten_decoder_fn
 from utils.ultilities import config_seed, load_model, save_checkpoint, EarlyStopping
 from utils.loader import get_data_array, preprocess_pipeline, AQDataSet
 from torch.utils.data import DataLoader
-from src.models.stdgi import Attention_STDGI, InterpolateAttention_STDGI
+from src.models.stdgi import Attention_STDGI, EGCN_STDGI
 from src.models.decoder import (
     Decoder,
     InterpolateAttentionDecoder,
@@ -20,7 +21,8 @@ from src.models.decoder import (
 )
 from src.modules.train.train import train_atten_decoder_fn
 from src.modules.train.train import train_atten_stdgi
-
+import logging
+import wandb
 
 def print_mem():
     # import psutil
@@ -82,16 +84,13 @@ def parse_args():
         type=list,
     )
     parser.add_argument(
-        "--model_type", type=str, choices=["gede", "wogcn", "wornnencoder", "woclimate"]
+        "--model_type", type=str, choices=["gede", "wogcn", "wornnencoder", "woclimate", "egcn"]
+    )
+    parser.add_argument(
+        "--dataset", type=str, choices=['beijing', 'uk']
     )
     return parser.parse_args()
 
-
-from utils.loader import comb_df
-from utils.loader import get_columns, AQDataSet, location_arr
-import logging
-import wandb
-import json
 
 if __name__ == "__main__":
     logging.basicConfig(
@@ -107,12 +106,15 @@ if __name__ == "__main__":
     config_seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # device = torch.device("cpu")
-    file_path = "./data/merged_AQ/"
+    if args.dataset == 'uk':
+        file_path = "./data/uk_AQ/"
+    elif args.dataset == 'beijing':
+        file_path = "./data/beijing_AQ/"
     comb_arr, location_, station, features_name,corr = get_data_array(
-        file_path, args.climate_features
+        args, file_path
     )
     print(station)
-    trans_df, climate_df, scaler = preprocess_pipeline(comb_arr)
+    trans_df, climate_df, scaler = preprocess_pipeline(comb_arr, args)
     config["features"] = features_name
     test_name = "test1"
     # args.train_station = [ 92,  18,  38,  37,  16,  76,  27, 131,  35,  22,  81,  80,  30,
@@ -120,9 +122,14 @@ if __name__ == "__main__":
     # args.valid_station = [122, 100,  42,  26,  36, 113,  74, 126, 132, 116,  72, 117, 104,
     #     68,   0]
     # args.test_station = [69, 6, 135, 71, 137, 41, 73, 28, 29, 127]
-    args.train_station = [15, 17, 19, 21, 48, 73, 96, 114, 131, 137]
-    args.valid_station = [20, 34, 56, 85]
-    args.test_station = [97 ,98,134 ]
+    if args.dataset == 'beijing':
+        args.train_station = [18, 11, 3, 15, 8, 1, 9]
+        args.valid_station = [12, 7, 2, 10, 13]
+        args.test_station  = [0, 4, 5, 6] 
+    elif args.dataset == 'uk':
+        args.train_station = [15, 17, 19, 21, 48, 73, 96, 114, 131]
+        args.valid_station = [20, 34, 56, 85]
+        args.test_station = [97 ,98, 134, 137]
     train_dataset = AQDataSet(
         data_df=trans_df[:],
         climate_df=climate_df,
@@ -146,16 +153,28 @@ if __name__ == "__main__":
             config=config,
         )
     # Model Stdgi
-    stdgi = Attention_STDGI(
-        in_ft=args.input_dim,
-        out_ft=args.output_stdgi,
-        en_hid1=args.en_hid1,
-        en_hid2=args.en_hid2,
-        dis_hid=args.dis_hid,
-        stdgi_noise_min=args.stdgi_noise_min,
-        stdgi_noise_max=args.stdgi_noise_max,
-        model_type=args.model_type,
-    ).to(device)
+    if args.model_type != 'egcn':
+        stdgi = Attention_STDGI(
+            in_ft=args.input_dim,
+            out_ft=args.output_stdgi,
+            en_hid1=args.en_hid1,
+            en_hid2=args.en_hid2,
+            dis_hid=args.dis_hid,
+            stdgi_noise_min=args.stdgi_noise_min,
+            stdgi_noise_max=args.stdgi_noise_max,
+            model_type=args.model_type,
+        ).to(device)
+    else:
+        stdgi = EGCN_STDGI(
+            in_ft=args.input_dim,
+            out_ft=args.output_stdgi,
+            en_hid1=args.en_hid1,
+            en_hid2=args.en_hid2,
+            dis_hid=args.dis_hid,
+            stdgi_noise_min=args.stdgi_noise_min,
+            stdgi_noise_max=args.stdgi_noise_max,
+        ).to(device)
+        
     l2_coef = 0.0
     mse_loss = nn.MSELoss()
     bce_loss = nn.BCELoss()
@@ -318,8 +337,12 @@ if __name__ == "__main__":
 
     for test_station in args.test_station:
         df = pd.DataFrame(data=predict[test_station], columns=["grt", "prd"])
+        fdir = "./result/{}/{}".format(args.dataset,test_name)
+        if not os.exists(fdir):
+            os.makedirs(fdir)
+        fn = "{}/Station_{}.csv".format(fdir, test_station)
         df.to_csv(
-            "./result/{}/Station_{}.csv".format(test_name, test_station), index=False
+            fn, index=False
         )
     tmp = np.array(list_acc).mean(0)
     list_acc.append(tmp)

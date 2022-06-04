@@ -74,7 +74,7 @@ def rolling(x):
 from sklearn.impute import KNNImputer, SimpleImputer
 
 
-def preprocess_pipeline(df):
+def preprocess_pipeline(df, args):
     # 800,35,17
     scaler = MinMaxScaler((-1, 1))
     # import pdb; pdb.set_trace()
@@ -90,7 +90,9 @@ def preprocess_pipeline(df):
     res = np.reshape(res, (-1, b, c))
     # breakpoint()
     trans_df = res[:, :, :]
-    climate_df = res[:, :, 5:]
+
+    idx_climate = 5 if args.dataset == 'uk' else 7
+    climate_df = res[:, :, idx_climate:]
     del res
     return trans_df, climate_df, scaler
 
@@ -132,9 +134,14 @@ def location_arr(file_path, res):
     return np.array(list_location)
 
 
-def get_data_array(file_path, columns2):
+def get_data_array(args, file_path):
     # columns1 = ["PM2.5", "PM10", "O3", "SO2", "NO2", "CO", "AQI"]
-    columns1 = ["PM2.5", "PM10", "O3", "SO2", "NO2"]
+    # import pdb; pdb.set_trace()
+    if args.dataset == 'uk':
+        columns1 = ["PM2.5", "PM10", "O3", "SO2", "NO2"]
+    elif args.dataset == 'beijing':
+        columns1 = ['PM2.5','AQI','PM10','CO','NO2','O3','SO2']
+    columns2 = args.climate_features
     columns = columns1 + columns2
     location_df = pd.read_csv(file_path + "location.csv")
     # breakpoint()
@@ -162,7 +169,7 @@ def get_data_array(file_path, columns2):
     del location
     del location_df
     # breakpoint()
-    return list_arr, location_, station, columns,corr
+    return list_arr, location_, station, columns, corr
 
 
 # from torchvision import transforms
@@ -177,7 +184,8 @@ class AQDataSet(Dataset):
         test_station=None,
         test=False,
         interpolate=False,
-        corr=None
+        corr=None,
+        args=None
     ) -> None:
         super().__init__()
         assert not (test and test_station == None), "pha test yeu cau nhap tram test"
@@ -194,19 +202,29 @@ class AQDataSet(Dataset):
         self.climate_df = climate_df
         self.n_st = len(list_train_station) - 1
         self.corr =corr
+        self.train_cpt = args.train_pct
+        self.valid_cpt = args.valid_pct
+        self.test_cpt = args.test_pct
+
+        idx_test = int(len(data_df) * (1- self.test_cpt))
+        # phan data train thi khong lien quan gi den data test 
+        self.X_train = data_df[:idx_test,:, :]
+        self.climate_train = climate_df[:idx_test,:, :]
+        
         # test data
         if self.test:
+            # phan data test khong lien quan gi data train 
             test_station = int(test_station)
             lst_cols_input_test_int = list(
                 set(self.list_cols_train_int) - set([self.list_cols_train_int[-1]])
             )
 
-            self.X_test = data_df[:, lst_cols_input_test_int]
+            self.X_test = data_df[idx_test:, lst_cols_input_test_int,:]
             self.l_test = self.get_reverse_distance_matrix(
                 lst_cols_input_test_int, test_station
             )
-            self.Y_test = data_df[:, test_station]
-            self.climate_test = climate_df[:, test_station]
+            self.Y_test = data_df[idx_test:, test_station, :]
+            self.climate_test = climate_df[idx_test:, test_station, :]
             self.G_test = self.get_adjacency_matrix(lst_cols_input_test_int)
             if self.corr is not None:
                 self.corr_matrix_test = self.get_corr_matrix(lst_cols_input_test_int)
@@ -270,10 +288,10 @@ class AQDataSet(Dataset):
             lst_col_train_int = list(
                 set(self.list_cols_train_int) - set([picked_target_station_int])
             )
-            x = self.data_df[index : index + self.input_len, lst_col_train_int, :]
+            x = self.X_train[index : index + self.input_len, lst_col_train_int, :]
             # x = np.expand_dims(x, -1)
-            y = self.data_df[index + self.input_len - 1, picked_target_station_int, 0]
-            climate = self.climate_df[
+            y = self.X_train[index + self.input_len - 1, picked_target_station_int, 0]
+            climate = self.climate_train[
                 index + self.input_len - 1, picked_target_station_int, :
             ]
             G = self.get_adjacency_matrix(
@@ -301,7 +319,9 @@ class AQDataSet(Dataset):
         return sample
 
     def __len__(self) -> int:
-        return self.data_df.shape[0] - (self.input_len)
+        if self.test:
+            return self.X_test.shape[0] - self.input_len
+        return self.X_train.shape[0] - (self.input_len)
 
 
 from utils.ultilities import config_seed

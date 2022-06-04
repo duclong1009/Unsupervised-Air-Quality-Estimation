@@ -1,7 +1,6 @@
 import torch.nn as nn
 import torch
 
-
 class Discriminator(nn.Module):
     def __init__(self, h_ft, x_ft, hid_ft):
         super(Discriminator, self).__init__()
@@ -17,3 +16,4 @@ class Discriminator(nn.Module):
         ret2 = self.linear(ret2)
         ret = torch.cat((ret1, ret2), 2)
         return self.sigmoid(ret)
+
