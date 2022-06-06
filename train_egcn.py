@@ -23,7 +23,7 @@ from src.models.decoder import (
 )
 from src.modules.train.train import train_atten_decoder_fn, train_egcn, train_egcn_decoder_fn
 from src.modules.train.train import train_atten_stdgi
-
+import os 
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -42,9 +42,9 @@ def parse_args():
     parser.add_argument("--output_dim", default=1, type=int)
     parser.add_argument("--sequence_length", default=12, type=int)
     parser.add_argument("--batch_size", default=32, type=int)
-    parser.add_argument("--patience", default=5, type=int)
-    parser.add_argument("--lr_stdgi", default=5e-3, type=float)
-    parser.add_argument("--num_epochs_stdgi", default=30, type=int)
+    parser.add_argument("--patience", default=20, type=int)
+    parser.add_argument("--lr_stdgi", default=0.001, type=float)
+    parser.add_argument("--num_epochs_stdgi", default=100, type=int)
     parser.add_argument("--output_stdgi", default=60, type=int)
     parser.add_argument("--checkpoint_stdgi", default="stdgi", type=str)
     parser.add_argument("--output_path", default="./out/", type=str)
@@ -53,8 +53,8 @@ def parse_args():
     parser.add_argument("--dis_hid", default=6, type=int)
     parser.add_argument("--act_fn", default="relu", type=str)
     parser.add_argument("--delta_stdgi", default=0, type=float)
-    parser.add_argument("--num_epochs_decoder", default=30, type=int)
-    parser.add_argument("--lr_decoder", default=5e-3, type=float)
+    parser.add_argument("--num_epochs_decoder", default=100, type=int)
+    parser.add_argument("--lr_decoder", default=0.001, type=float)
     parser.add_argument("--checkpoint_decoder", default="decoder", type=str)
     parser.add_argument("--delta_decoder", default=0, type=float)
     parser.add_argument("--cnn_hid_dim", default=64, type=int)
@@ -189,27 +189,27 @@ if __name__ == "__main__":
         delta=args.delta_stdgi,
         path="./out/checkpoint/" + args.checkpoint_stdgi + ".pt",
     )
-    scheduler = ReduceLROnPlateau(stdgi_optimizer, 'min', factor=0.5, patience=2)
+    scheduler_stdgi = ReduceLROnPlateau(stdgi_optimizer, 'min', factor=0.5, patience=3)
 
     logging.info(
         f"Training stdgi ||  interpolate {args.interpolate} || attention decoder {args.attention_decoder} || epochs {args.num_epochs_stdgi} || lr {args.lr_stdgi}"
     )
-    # train_stdgi_loss = []
-    # for i in range(args.num_epochs_stdgi):
-    #     if not early_stopping_stdgi.early_stop:
-    #         loss = train_egcn(
-    #             stdgi,
-    #             train_dataloader,
-    #             stdgi_optimizer,
-    #             bce_loss,
-    #             device,
-    #             args
-    #         )
-    #         early_stopping_stdgi(loss, stdgi)
-    #         scheduler.step(loss)
-    #         if args.log_wandb:wandb.log({"loss/stdgi_loss": loss})
-    #         logging.info("Epochs/Loss: {}/ {}".format(i, loss))
-    # if args.log_wandb:wandb.run.summary["best_loss_stdgi"] = early_stopping_stdgi.best_score
+    train_stdgi_loss = []
+    for i in range(args.num_epochs_stdgi):
+        if not early_stopping_stdgi.early_stop:
+            loss = train_egcn(
+                stdgi,
+                train_dataloader,
+                stdgi_optimizer,
+                bce_loss,
+                device,
+                args
+            )
+            early_stopping_stdgi(loss, stdgi)
+            scheduler_stdgi.step(loss)
+            if args.log_wandb:wandb.log({"loss/stdgi_loss": loss})
+            logging.info("Epochs/Loss: {}/ {}".format(i, loss))
+    if args.log_wandb:wandb.run.summary["best_loss_stdgi"] = early_stopping_stdgi.best_score
     load_model(stdgi, "./out/checkpoint/" + args.checkpoint_stdgi + ".pt")
 
     if args.wo_climate: # khong dung climate embedding
@@ -245,6 +245,8 @@ if __name__ == "__main__":
         delta=args.delta_decoder,
         path="./out/checkpoint/" + args.checkpoint_decoder + ".pt",
     )
+    scheduler_encoder = ReduceLROnPlateau(stdgi_optimizer, 'min', factor=0.5, patience=3)
+
 
     for i in range(args.num_epochs_decoder):
         if not early_stopping_decoder.early_stop:
@@ -259,6 +261,7 @@ if __name__ == "__main__":
                 args,
                 interpolate=args.interpolate,
             )
+            scheduler_encoder.step(train_loss)
             valid_loss = 0
             for valid_station in args.valid_station:
                 valid_dataset = AQDataSet(
@@ -330,8 +333,11 @@ if __name__ == "__main__":
             axis=1,
         )
         out_df = pd.DataFrame(output_arr, columns=["ground_truth", "prediction"])
-        out_df.to_csv(f"output/Station_{test_station}.csv")
-        mae, mse, mape,mdape, rmse, r2, corr_ = cal_acc(list_prd, list_grt)
+        out_dir = "output/{}/{}/".format(args.dataset, args.model_type)
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+        out_df.to_csv(out_dir + f"Station_{test_station}.csv")
+        mae, mse, mape,rmse, r2, corr_, mdape= cal_acc(list_prd, list_grt)
         list_acc.append([test_station, mae, mse, mape,mdape, rmse, r2, corr_])
         predict[test_station] = {"grt": list_grt, "prd": list_prd}
         print("Test Accuracy: {}".format(mae, mse, corr))

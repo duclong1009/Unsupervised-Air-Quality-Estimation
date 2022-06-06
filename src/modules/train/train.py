@@ -182,18 +182,7 @@ def train_egcn_decoder_fn(stdgi, decoder, dataloader, criterion, optimizer, devi
         batch_loss.backward()
         optimizer.step()
         epoch_loss += batch_loss
-        # for index in range(data["X"].shape[0]):
-        #     y_grt = data["Y"].to(device).float()
-        #     # x = data["X"][index][-1].unsqueeze(0).to(device).float()
-        #     # G = data["G"][index][-1].unsqueeze(0).to(device).float()
-        #     x = data["X"][index].unsqueeze(0).to(device).float()
-        #     G = data["G"][index].unsqueeze(0).to(device).float()
-        #     l = data["l"][index].to(device).float()
-        #     cli = data['climate'][index].to(device).float()
-        #     h = stdgi.embedd(x, G)
-        #     y_prd = decoder(x, h, l,cli)  # 3x1x1
-        #     batch_loss += criterion(torch.squeeze(y_prd), torch.squeeze(y_grt))
-        # batch_loss = batch_loss / data["X"].shape[0]
+
     train_loss = epoch_loss / len(dataloader)
     return train_loss
     

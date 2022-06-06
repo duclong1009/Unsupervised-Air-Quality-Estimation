@@ -5,10 +5,10 @@ import torch.nn as nn
 class EGCN_layer(nn.Module):
     def __init__(self, in_channels, hid_dim,output_dim,p) -> None:
         super().__init__()
-        self.linear1 = nn.Linear(in_channels, hid_dim)
+        self.linear1 = nn.ModuleList([nn.Linear(in_channels, hid_dim) for i in range(p) ])
         self.activation = nn.ReLU()
         self.LeakyReLU = nn.LeakyReLU()
-        self.sigmoid = nn.Sigmoid()
+        self.softmax = nn.Softmax(dim=-1)
         self.linear2 = nn.ModuleList([nn.Linear(in_channels, hid_dim)  for i in range(p)])
         self.linear3 = nn.ModuleList([nn.Linear(in_channels, hid_dim)for i in range(p)])
         self.linear4 = nn.ModuleList([nn.Linear(hid_dim * 2, 1)for i in range(p)])
@@ -22,27 +22,32 @@ class EGCN_layer(nn.Module):
         """
         list_x = []
         n_channels = e.shape[-1]
-        gl = self.linear1(x) # (8)
+        # gl = self.linear1(x) 
         new_e = torch.zeros_like(e)
         for i in range(n_channels):
             # breakpoint()
+            gl = self.linear1[i](x) # (8)
             coef = self._atten(x,i) # (11)
-            new_e[:,:,:,i] = coef * e[:,:,:,i] # (9)
-            x_i = torch.bmm(coef,gl)
+            # import pdb; pdb.set_trace()
+            norm_e = self.DS(coef * e[:,:,:,i])
+            new_e[:,:,:,i] = norm_e # (9)
+            x_i = torch.bmm(norm_e,gl) # (7)
             # x_i = torch.bmm(new_e[:,:,:,i],gl) 
             list_x.append(x_i)
-        res_x = torch.concat(list_x,dim=-1) #(7)
+        res_x = self.activation(torch.concat(list_x,dim=-1)) #(7)
         new_e = self.DS(new_e) # (10)
         res_x = self.last_liner(res_x)
         return res_x, new_e
 
     def _atten(self, x,idx): # fl( Xi(l-1), Xj(l-1) )
         n_nodes = x.shape[1]
+        # x1 = self.linear2[idx](x)
+        # x2 = self.linear3[idx](x)
         x1 = self.linear2[idx](x).unsqueeze(1).expand(-1,n_nodes, -1, -1)
         x2 = self.linear3[idx](x).unsqueeze(2).expand(-1,-1, n_nodes, -1)
         x3 = self.LeakyReLU(self.linear4[idx](torch.cat([x1, x2], dim=-1))) # (seq_len, n_nodes, n_nodes, n_channels)     
         x3 = torch.squeeze(x3,-1) # (seq_len, n_nodes, n_nodes)
-        return self.sigmoid(x3)
+        return torch.exp(x3)
 
     def DS(self,e):
         """
@@ -50,20 +55,42 @@ class EGCN_layer(nn.Module):
         raw_shape = e.shape
         # breakpoint()
         n_nodes = e.shape[1]
-        e = torch.permute(e,(0,3,1,2))
-        e = e.reshape(-1,n_nodes,n_nodes)
+        if len(raw_shape) == 4:
+            e = torch.permute(e,(0,3,1,2))
+            e = e.reshape(-1,n_nodes,n_nodes)
         e_ = torch.sum(e,dim=2)
         e_ = e_.unsqueeze(2).expand(-1,-1,n_nodes)
         new_e = e/e_
         new_e_ = torch.sum(new_e,dim=1)
         new_e_ = new_e_.unsqueeze(1).expand(-1,n_nodes,-1)
+        new_e_ = torch.sqrt(new_e_)
         new_e = new_e/ new_e_
         new_e_T = torch.transpose(new_e,1,2)
-        # breakpoint()
         new_e = torch.bmm(new_e,new_e_T)
-        new_e = new_e.reshape(raw_shape[0],raw_shape[3],raw_shape[1],raw_shape[2])
-        new_e = torch.permute(new_e,(0,2,3,1))
+        if len(raw_shape) == 4:
+            new_e = new_e.reshape(raw_shape[0],raw_shape[3],raw_shape[1],raw_shape[2])
+            new_e = torch.permute(new_e,(0,2,3,1))
         return new_e
+    # def DS(self,e):
+    #     """
+    #     :param e: [batch_size,num_nodes, num_nodes,n_channels]"""
+    #     raw_shape = e.shape
+    #     # breakpoint()
+    #     n_nodes = e.shape[1]
+    #     e = torch.permute(e,(0,3,1,2))
+    #     e = e.reshape(-1,n_nodes,n_nodes)
+    #     e_ = torch.sum(e,dim=2)
+    #     e_ = e_.unsqueeze(2).expand(-1,-1,n_nodes)
+    #     new_e = e/e_
+    #     new_e_ = torch.sum(new_e,dim=1)
+    #     new_e_ = new_e_.unsqueeze(1).expand(-1,n_nodes,-1)
+    #     new_e = new_e/ new_e_
+    #     new_e_T = torch.transpose(new_e,1,2)
+    #     # breakpoint()
+    #     new_e = torch.bmm(new_e,new_e_T)
+    #     new_e = new_e.reshape(raw_shape[0],raw_shape[3],raw_shape[1],raw_shape[2])
+    #     new_e = torch.permute(new_e,(0,2,3,1))
+    #     return new_e
         
 class EGCN(nn.Module):
     def __init__(self, in_channels, hid_dim, output_dim,p,n_layer) -> None:
@@ -91,22 +118,44 @@ class EGCN(nn.Module):
         raw_shape = e.shape
         # breakpoint()
         n_nodes = e.shape[1]
-        # (1)
-        # import pdb; pdb.set_trace()
-        e = torch.permute(e,(0,3,1,2))
-        e = e.reshape(-1,n_nodes,n_nodes)
+        if len(raw_shape) == 4:
+            e = torch.permute(e,(0,3,1,2))
+            e = e.reshape(-1,n_nodes,n_nodes)
         e_ = torch.sum(e,dim=2)
         e_ = e_.unsqueeze(2).expand(-1,-1,n_nodes)
         new_e = e/e_
-        # (2)
         new_e_ = torch.sum(new_e,dim=1)
         new_e_ = new_e_.unsqueeze(1).expand(-1,n_nodes,-1)
+        new_e_ = torch.sqrt(new_e_)
         new_e = new_e/ new_e_
         new_e_T = torch.transpose(new_e,1,2)
         new_e = torch.bmm(new_e,new_e_T)
-        new_e = new_e.reshape(raw_shape[0],raw_shape[3],raw_shape[1],raw_shape[2])
-        new_e = torch.permute(new_e,(0,2,3,1))
+        if len(raw_shape) == 4:
+            new_e = new_e.reshape(raw_shape[0],raw_shape[3],raw_shape[1],raw_shape[2])
+            new_e = torch.permute(new_e,(0,2,3,1))
         return new_e
+    # def DS(self,e):
+    #     """
+    #     :param e: [batch_size,num_nodes, num_nodes,n_channels]"""
+    #     raw_shape = e.shape
+    #     # breakpoint()
+    #     n_nodes = e.shape[1]
+    #     # (1)
+    #     # import pdb; pdb.set_trace()
+    #     e = torch.permute(e,(0,3,1,2))
+    #     e = e.reshape(-1,n_nodes,n_nodes)
+    #     e_ = torch.sum(e,dim=2)
+    #     e_ = e_.unsqueeze(2).expand(-1,-1,n_nodes)
+    #     new_e = e/e_
+    #     # (2)
+    #     new_e_ = torch.sum(new_e,dim=1)
+    #     new_e_ = new_e_.unsqueeze(1).expand(-1,n_nodes,-1)
+    #     new_e = new_e/ new_e_
+    #     new_e_T = torch.transpose(new_e,1,2)
+    #     new_e = torch.bmm(new_e,new_e_T)
+    #     new_e = new_e.reshape(raw_shape[0],raw_shape[3],raw_shape[1],raw_shape[2])
+    #     new_e = torch.permute(new_e,(0,2,3,1))
+    #     return new_e
 
 class TemporalEGCN(torch.nn.Module):
     r"""An implementation THAT SUPPORTS BATCHES of the Temporal Graph Convolutional Gated Recurrent Cell.
