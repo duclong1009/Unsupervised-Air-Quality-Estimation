@@ -5,19 +5,19 @@ import torch.nn.functional as F
 
 class Decoder(nn.Module):
     def __init__(
-        self, in_ft, out_ft, n_layers_rnn=1, rnn="GRU", cnn_hid_dim=128, fc_hid_dim=64,n_features=7, num_input_station=7
+        self, in_ft, out_ft, n_layers_rnn=1, rnn="GRU", cnn_hid_dim=128, fc_hid_dim=64,n_features=7, num_input_stat=7
     ):
         super(Decoder, self).__init__()
         self.in_ft = in_ft
         self.out_ft = out_ft
         self.n_layers_rnn = n_layers_rnn
-        self.num_input_stat = num_input_station  - 1
+        self.num_input_stat = num_input_stat  - 1
         if rnn == "GRU":
-            self.rnn = nn.GRU(in_ft * (num_input_station-1), in_ft* (num_input_station-1), batch_first=True, num_layers=n_layers_rnn)
+            self.rnn = nn.GRU(in_ft * (self.num_input_stat), in_ft* (self.num_input_stat), batch_first=True, num_layers=n_layers_rnn)
         elif rnn == "LSTM":
-            self.rnn = nn.LSTM(in_ft* (num_input_station-1), in_ft* (num_input_station-1), batch_first=True, num_layers=n_layers_rnn)
+            self.rnn = nn.LSTM(in_ft* self.num_input_stat, in_ft* self.num_input_stat, batch_first=True, num_layers=n_layers_rnn)
         else:
-            self.rnn = nn.RNN(in_ft* (num_input_station-1), in_ft* (num_input_station-1), batch_first=True, num_layers=n_layers_rnn)
+            self.rnn = nn.RNN(in_ft* self.num_input_stat, in_ft* self.num_input_stat, batch_first=True, num_layers=n_layers_rnn)
         self.embed = nn.Linear(n_features, cnn_hid_dim)
         self.linear = nn.Linear(in_features=cnn_hid_dim*2, out_features=fc_hid_dim)
         self.linear2 = nn.Linear(fc_hid_dim, out_ft)
