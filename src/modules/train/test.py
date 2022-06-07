@@ -47,7 +47,7 @@ def test_atten_decoder_fn(
                 G = data["G"][:,-1,:,:,:].to(device).float()
                 l = data["l"].to(device).float()
                 cli = data['climate'].to(device).float()
-            
+            # print(stdgi(x, x, G))
             h = stdgi.embedd(x, G)
             y_prd = decoder(x, h, l,cli) 
             batch_loss = criterion(torch.squeeze(y_prd), torch.squeeze(y_grt))

@@ -1,6 +1,26 @@
 # from builtins import breakpoint
+from builtins import breakpoint
 import torch
 import torch.nn as nn
+
+
+class EGCNC_layer(nn.Module):
+    def __init__(self, in_channels, hid_dim,output_dim,p) -> None:
+        super().__init__()
+        self.linear1 = nn.ModuleList([nn.Linear(in_channels, hid_dim) for i in range(p) ])
+        self.activation = nn.ReLU()
+        self.last_liner = nn.Linear(hid_dim *p, output_dim)
+    def forward(self,x,e):
+        list_x = []
+        n_channels = e.shape[-1]
+        for i in range(n_channels):
+            # breakpoint()
+            gl = self.linear1[i](x) # (8)
+            x_i = torch.bmm(e[:,:,:,i],gl) # (7)
+            list_x.append(x_i)
+        res_x = self.activation(torch.concat(list_x,dim=-1)) 
+        res_x_ = self.last_liner(res_x)
+        return res_x_,e
 
 class EGCN_layer(nn.Module):
     def __init__(self, in_channels, hid_dim,output_dim,p) -> None:
@@ -32,22 +52,22 @@ class EGCN_layer(nn.Module):
             norm_e = self.DS(coef * e[:,:,:,i])
             new_e[:,:,:,i] = norm_e # (9)
             x_i = torch.bmm(norm_e,gl) # (7)
-            # x_i = torch.bmm(new_e[:,:,:,i],gl) 
             list_x.append(x_i)
         res_x = self.activation(torch.concat(list_x,dim=-1)) #(7)
         new_e = self.DS(new_e) # (10)
-        res_x = self.last_liner(res_x)
-        return res_x, new_e
+        res_x_ = self.last_liner(res_x)
+        if torch.isnan(res_x).any():
+            import pdb; pdb.set_trace()
+        return res_x_, new_e
 
     def _atten(self, x,idx): # fl( Xi(l-1), Xj(l-1) )
         n_nodes = x.shape[1]
-        # x1 = self.linear2[idx](x)
-        # x2 = self.linear3[idx](x)
         x1 = self.linear2[idx](x).unsqueeze(1).expand(-1,n_nodes, -1, -1)
         x2 = self.linear3[idx](x).unsqueeze(2).expand(-1,-1, n_nodes, -1)
-        x3 = self.LeakyReLU(self.linear4[idx](torch.cat([x1, x2], dim=-1))) # (seq_len, n_nodes, n_nodes, n_channels)     
+        x3 = self.LeakyReLU(self.linear4[idx](torch.cat([x1, x2], dim=-1))) # (seq_len, n_nodes, n_nodes, n_channels)   
         x3 = torch.squeeze(x3,-1) # (seq_len, n_nodes, n_nodes)
-        return torch.exp(x3)
+        out = torch.exp(x3)
+        return out
 
     def DS(self,e):
         """
@@ -71,33 +91,18 @@ class EGCN_layer(nn.Module):
             new_e = new_e.reshape(raw_shape[0],raw_shape[3],raw_shape[1],raw_shape[2])
             new_e = torch.permute(new_e,(0,2,3,1))
         return new_e
-    # def DS(self,e):
-    #     """
-    #     :param e: [batch_size,num_nodes, num_nodes,n_channels]"""
-    #     raw_shape = e.shape
-    #     # breakpoint()
-    #     n_nodes = e.shape[1]
-    #     e = torch.permute(e,(0,3,1,2))
-    #     e = e.reshape(-1,n_nodes,n_nodes)
-    #     e_ = torch.sum(e,dim=2)
-    #     e_ = e_.unsqueeze(2).expand(-1,-1,n_nodes)
-    #     new_e = e/e_
-    #     new_e_ = torch.sum(new_e,dim=1)
-    #     new_e_ = new_e_.unsqueeze(1).expand(-1,n_nodes,-1)
-    #     new_e = new_e/ new_e_
-    #     new_e_T = torch.transpose(new_e,1,2)
-    #     # breakpoint()
-    #     new_e = torch.bmm(new_e,new_e_T)
-    #     new_e = new_e.reshape(raw_shape[0],raw_shape[3],raw_shape[1],raw_shape[2])
-    #     new_e = torch.permute(new_e,(0,2,3,1))
-    #     return new_e
         
 class EGCN(nn.Module):
-    def __init__(self, in_channels, hid_dim, output_dim,p,n_layer) -> None:
+    def __init__(self, in_channels, hid_dim, output_dim,p,n_layer,model_type="EGCNC") -> None:
         super().__init__()
-        list_egcn = [EGCN_layer(in_channels, hid_dim, output_dim,p)]
-        for i in range(n_layer-1):
-            list_egcn.append(EGCN_layer(output_dim, hid_dim, output_dim,p))
+        if model_type == "EGCNA":
+            list_egcn = [EGCN_layer(in_channels, hid_dim, output_dim,p)]
+            for i in range(n_layer-1):
+                list_egcn.append(EGCN_layer(output_dim, hid_dim, output_dim,p))
+        elif model_type == "EGCNC":
+            list_egcn = [EGCNC_layer(in_channels, hid_dim, output_dim,p)]
+            for i in range(n_layer-1):
+                list_egcn.append(EGCNC_layer(output_dim, hid_dim, output_dim,p))
         self.egcn = nn.ModuleList(list_egcn)
         self.n_layer = n_layer
 
@@ -110,6 +115,7 @@ class EGCN(nn.Module):
         e = self.DS(e)
         for i in range(self.n_layer):
             x,e = self.egcn[i](x,e)
+        # print(x[0])
         return x, e
 
     def DS(self,e):
