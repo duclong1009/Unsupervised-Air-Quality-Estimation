@@ -4,3 +4,4 @@ wandb/
 out/
 data/
 train_wo_ssa.sh
+output/

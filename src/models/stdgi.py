@@ -6,7 +6,7 @@ from src.layers.EGCN import EGCN
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
-from src.layers.encoder import BaseEncoder, Attention_Encoder, Encoder, GCN_Encoder, WoGCN_Encoder, TemporalEGCNEncoder
+from src.layers.encoder import BaseEncoder, Attention_Encoder, Encoder, GCN_Encoder, WoGCN_Encoder
 from src.layers.discriminator import Discriminator
 
 class BaseSTDGI(nn.Module):
@@ -68,7 +68,7 @@ class STDGI(nn.Module):
         return h
 
 class Attention_STDGI(nn.Module):
-    def __init__(self, in_ft, out_ft, en_hid1, en_hid2, dis_hid, act_en="relu", stdgi_noise_min=0.4, stdgi_noise_max=0.7,model_type="gede"):
+    def __init__(self, in_ft, out_ft, en_hid1, en_hid2, dis_hid, act_en="relu", stdgi_noise_min=0.4, stdgi_noise_max=0.7,model_type="gede",num_input_station= 0):
         super(Attention_STDGI, self).__init__()
         if model_type == "gede" or model_type == "woclimate":
             print("Init Attention_Encoder model ...")
@@ -78,7 +78,7 @@ class Attention_STDGI(nn.Module):
         elif model_type == "wogcn":
             print("Init WoGCN_Encoder model ...")
             self.encoder = WoGCN_Encoder(
-                in_ft=in_ft, hid_ft1=en_hid1, hid_ft2=en_hid2, out_ft=out_ft, act=act_en
+                in_ft=in_ft, hid_ft1=en_hid1, hid_ft2=en_hid2, out_ft=out_ft, act=act_en,num_input_station=num_input_station
             )
         elif model_type == "wornnencoder":
             print("Init WoGCN_Encoder model ...")
@@ -91,19 +91,16 @@ class Attention_STDGI(nn.Module):
 
     def forward(self, x, x_k, adj):
         h = self.encoder(x, adj)
-        # breakpoint()
         x_c = self.corrupt(x_k)
-        ret = self.disc(h, x_k[-1].unsqueeze(0), x_c[-1].unsqueeze(0))
+        ret = self.disc(h, x_k[:,-1,:,:], x_c[:,-1,:,:])
         return ret
 
     def corrupt(self, X):
         nb_nodes = X.shape[1]
         idx = np.random.permutation(nb_nodes)
         shuf_fts = X[:, idx, :]
-        # print('Noise min: {}'.format(self.stdgi_noise_min))
-        # print('Noise max: {}'.format(self.stdgi_noise_max))
         return np.random.uniform(self.stdgi_noise_min, self.stdgi_noise_max) * shuf_fts
-        # return shuf_fts
+        
     def embedd(self, x, adj):
         h = self.encoder(x, adj)
         return h

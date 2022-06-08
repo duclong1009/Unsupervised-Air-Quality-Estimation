@@ -91,6 +91,7 @@ def parse_args():
     parser.add_argument(
         "--model_type", type=str, choices=["gede", "wogcn", "wornnencoder"]
     )
+    parser.add_argument("--group_name",type=str,default="",required=True)
     parser.add_argument("--dataset", type=str, choices=["beijing", "uk"])
     return parser.parse_args()
 
@@ -136,11 +137,6 @@ if __name__ == "__main__":
     trans_df, climate_df, scaler = preprocess_pipeline(comb_arr, args)
     config["features"] = features_name
     test_name = "test1"
-    # args.train_station = [ 92,  18,  38,  37,  16,  76,  27, 131,  35,  22,  81,  80,  30,
-    #     82, 129,  49, 101, 102, 130, 107,  99]
-    # args.valid_station = [122, 100,  42,  26,  36, 113,  74, 126, 132, 116,  72, 117, 104,
-    #     68,   0]
-    # args.test_station = [69, 6, 135, 71, 137, 41, 73, 28, 29, 127]
     if args.dataset == "beijing":
         args.train_station = [18, 11, 3, 15, 8, 1, 9]
         args.valid_station = [12, 7, 2, 10, 13]

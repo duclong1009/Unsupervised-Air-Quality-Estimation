@@ -50,6 +50,7 @@ class GCN_2_layers(torch.nn.Module):
         self.relu = nn.ReLU()
     
     def forward(self, x, adj, sparse=False):
+        
         x = self.gcn_1(x, adj)
         x  = self.gcn_2(x, adj)
         return x 

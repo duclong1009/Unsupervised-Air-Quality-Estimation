@@ -57,7 +57,47 @@ class AttentionLSTM(nn.Module):
         output = self.mlp_2(output)
         return output
 
+import math
 
+class DotProductAttention(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.softmax = nn.Softmax(dim=-1)
+
+    def forward(self, key, query, mask=None):
+        """_summary_
+
+        Args:
+            key (_type_): tensor([1,n_station,d_dim])
+            query (_type_): tensor([1,n_station,d_dim])
+            mask (_type_, optional): _description_. Defaults to None.
+
+        Returns:
+            _type_: _description_
+        """
+
+        n_station = key.shape[1]
+        query = query.unsqueeze(1)
+        score = torch.bmm(query, key.transpose(1, 2))
+        if mask is not None:
+            mask = mask.squeeze()
+            score = score.masked_fill(mask == 0, -math.inf)
+        attn = self.softmax(score.view(-1, n_station))
+        return attn
+
+class GeneralAttention(nn.Module):
+    def __init__(self,d_dim):
+        super().__init__()
+        self.weight_attention = nn.Linear(d_dim, d_dim)
+        self.softmax = nn.Softmax(dim=-1)
+
+    def forward(self, key, query):
+        n_station = key.shape[1]
+        query = query.unsqueeze(1)
+        attn = self.weight_attention(query)
+        score = torch.bmm(attn, key.transpose(1, 2))
+        attn_score = self.softmax(score.view(-1, n_station))
+        return attn_score
 # if __name__ == "__main__":
 #   atten_layer = AttentionLSTM(1,60,120,12,0.1)
 #   print(atten_layer(torch.rand(12,27,1)).shape)

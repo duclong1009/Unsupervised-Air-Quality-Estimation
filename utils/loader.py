@@ -192,7 +192,6 @@ class AQDataSet(Dataset):
         test_station=None,
         test=False,
         valid=False,
-        interpolate=False,
         corr=None,
         args=None
     ) -> None:
@@ -208,7 +207,6 @@ class AQDataSet(Dataset):
         self.valid = valid 
         self.data_df = data_df
         self.location = location_df
-        self.interpolate = interpolate
         self.climate_df = climate_df
         self.n_st = len(list_train_station) - 1
         self.corr =corr
