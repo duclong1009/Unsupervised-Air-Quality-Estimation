@@ -21,9 +21,14 @@ from src.models.decoder import (
     InterpolateDecoder,
     WoCli_Decoder,
 )
-from src.modules.train.train import train_atten_decoder_fn, train_egcn, train_egcn_decoder_fn
+from src.modules.train.train import (
+    train_atten_decoder_fn,
+    train_egcn,
+    train_egcn_decoder_fn,
+)
 from src.modules.train.train import train_atten_stdgi
-import os 
+import os
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -75,15 +80,18 @@ def parse_args():
     parser.add_argument("--log_wandb", action="store_false")
     parser.add_argument(
         "--climate_features",
-        default=["2m_temperature", "surface_pressure", "evaporation", "total_precipitation"],
+        default=[
+            "2m_temperature",
+            "surface_pressure",
+            "evaporation",
+            "total_precipitation",
+        ],
         type=list,
     )
     parser.add_argument(
         "--model_type", type=str, choices=["gede", "wogcn", "wornnencoder"]
     )
-    parser.add_argument(
-        "--dataset", type=str, choices=['beijing', 'uk']
-    )
+    parser.add_argument("--dataset", type=str, choices=["beijing", "uk"])
     return parser.parse_args()
 
 
@@ -108,16 +116,21 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # device = torch.device("cpu")
 
-    if args.dataset == 'uk':
+    if args.dataset == "uk":
         file_path = "./data/uk_AQ/"
-    elif args.dataset == 'beijing':
+    elif args.dataset == "beijing":
         file_path = "./data/beijing_AQ/"
     if args.use_wind:
-        args.climate_features =  ["2m_temperature", "surface_pressure", "evaporation", "total_precipitation", "wind_speed", "wind_angle"]
-    
-    comb_arr, location_, station, features_name,corr = get_data_array(
-        args, file_path
-    )
+        args.climate_features = [
+            "2m_temperature",
+            "surface_pressure",
+            "evaporation",
+            "total_precipitation",
+            "wind_speed",
+            "wind_angle",
+        ]
+
+    comb_arr, location_, station, features_name, corr = get_data_array(args, file_path)
     args.input_dim = len(features_name)
     # print(station)
     trans_df, climate_df, scaler = preprocess_pipeline(comb_arr, args)
@@ -128,15 +141,15 @@ if __name__ == "__main__":
     # args.valid_station = [122, 100,  42,  26,  36, 113,  74, 126, 132, 116,  72, 117, 104,
     #     68,   0]
     # args.test_station = [69, 6, 135, 71, 137, 41, 73, 28, 29, 127]
-    if args.dataset == 'beijing':
+    if args.dataset == "beijing":
         args.train_station = [18, 11, 3, 15, 8, 1, 9]
         args.valid_station = [12, 7, 2, 10, 13]
-        args.test_station  = [0, 4, 5, 6] 
-    elif args.dataset == 'uk':
+        args.test_station = [0, 4, 5, 6]
+    elif args.dataset == "uk":
         args.train_station = [15, 17, 19, 21, 48, 73, 96, 114, 131]
         args.valid_station = [20, 34, 56, 85]
-        args.test_station = [97 ,98, 134, 137]
-
+        args.test_station = [97, 98, 134, 137]
+    corr = None
     train_dataset = AQDataSet(
         data_df=trans_df[:],
         climate_df=climate_df,
@@ -145,7 +158,7 @@ if __name__ == "__main__":
         input_dim=args.sequence_length,
         interpolate=args.interpolate,
         corr=corr,
-        args=args
+        args=args,
     )
 
     train_dataloader = DataLoader(
@@ -153,13 +166,14 @@ if __name__ == "__main__":
     )
 
     # config["loss"] = 'mse'
-    if args.log_wandb:wandb.init(
-        entity="aiotlab",
-        project="Spatial_PM2.5",
-        group="merged_AQ_{}".format(args.dataset),
-        name=f"{args.name}",
-        config=config,
-    )
+    if args.log_wandb:
+        wandb.init(
+            entity="aiotlab",
+            project="Spatial_PM2.5",
+            group="merged_AQ_{}".format(args.dataset),
+            name=f"{args.name}",
+            config=config,
+        )
     # Model Stdgi
     stdgi = EGCN_STDGI(
         in_ft=args.input_dim,
@@ -171,7 +185,7 @@ if __name__ == "__main__":
         stdgi_noise_min=args.stdgi_noise_min,
         stdgi_noise_max=args.stdgi_noise_max,
         p=2,
-        model_type=args.model_type
+        model_type=args.model_type,
     ).to(device)
     l2_coef = 0.0
     mse_loss = nn.MSELoss()
@@ -189,7 +203,7 @@ if __name__ == "__main__":
         delta=args.delta_stdgi,
         path="./out/checkpoint/" + args.checkpoint_stdgi + ".pt",
     )
-    scheduler_stdgi = ReduceLROnPlateau(stdgi_optimizer, 'min', factor=0.5, patience=3)
+    scheduler_stdgi = ReduceLROnPlateau(stdgi_optimizer, "min", factor=0.5, patience=3)
 
     logging.info(
         f"Training stdgi ||  interpolate {args.interpolate} || attention decoder {args.attention_decoder} || epochs {args.num_epochs_stdgi} || lr {args.lr_stdgi}"
@@ -198,21 +212,18 @@ if __name__ == "__main__":
     for i in range(args.num_epochs_stdgi):
         if not early_stopping_stdgi.early_stop:
             loss = train_egcn(
-                stdgi,
-                train_dataloader,
-                stdgi_optimizer,
-                bce_loss,
-                device,
-                args
+                stdgi, train_dataloader, stdgi_optimizer, bce_loss, device, args
             )
             early_stopping_stdgi(loss, stdgi)
             scheduler_stdgi.step(loss)
-            if args.log_wandb:wandb.log({"loss/stdgi_loss": loss})
+            if args.log_wandb:
+                wandb.log({"loss/stdgi_loss": loss})
             logging.info("Epochs/Loss: {}/ {}".format(i, loss))
-    if args.log_wandb:wandb.run.summary["best_loss_stdgi"] = early_stopping_stdgi.best_score
+    if args.log_wandb:
+        wandb.run.summary["best_loss_stdgi"] = early_stopping_stdgi.best_score
     load_model(stdgi, "./out/checkpoint/" + args.checkpoint_stdgi + ".pt")
 
-    if args.wo_climate: # khong dung climate embedding
+    if args.wo_climate:  # khong dung climate embedding
         decoder = WoCli_Decoder(
             args.input_dim + args.output_stdgi,
             args.output_dim,
@@ -221,7 +232,7 @@ if __name__ == "__main__":
             cnn_hid_dim=args.cnn_hid_dim,
             fc_hid_dim=args.fc_hid_dim,
             n_features=len(args.climate_features),
-            num_input_stat=len(args.train_station)
+            num_input_stat=len(args.train_station),
         ).to(device)
     else:
         decoder = Decoder(
@@ -232,7 +243,7 @@ if __name__ == "__main__":
             cnn_hid_dim=args.cnn_hid_dim,
             fc_hid_dim=args.fc_hid_dim,
             n_features=len(args.climate_features),
-            num_input_stat=len(args.train_station)
+            num_input_stat=len(args.train_station),
         ).to(device)
 
     optimizer_decoder = torch.optim.Adam(
@@ -245,8 +256,9 @@ if __name__ == "__main__":
         delta=args.delta_decoder,
         path="./out/checkpoint/" + args.checkpoint_decoder + ".pt",
     )
-    scheduler_encoder = ReduceLROnPlateau(stdgi_optimizer, 'min', factor=0.5, patience=3)
-
+    scheduler_encoder = ReduceLROnPlateau(
+        stdgi_optimizer, "min", factor=0.5, patience=3
+    )
 
     for i in range(args.num_epochs_decoder):
         if not early_stopping_decoder.early_stop:
@@ -275,7 +287,7 @@ if __name__ == "__main__":
                     # output_dim=args.output_dim,
                     interpolate=args.interpolate,
                     corr=corr,
-                    args=args
+                    args=args,
                 )
                 valid_dataloader = DataLoader(
                     valid_dataset,
@@ -284,7 +296,13 @@ if __name__ == "__main__":
                     num_workers=0,
                 )
                 valid_loss_ = test_atten_decoder_fn(
-                    stdgi, decoder, valid_dataloader, device, mse_loss, test=False, args=args
+                    stdgi,
+                    decoder,
+                    valid_dataloader,
+                    device,
+                    mse_loss,
+                    test=False,
+                    args=args,
                 )
                 valid_loss += valid_loss_
             valid_loss = valid_loss / len(args.valid_station)
@@ -294,14 +312,16 @@ if __name__ == "__main__":
                     i, train_loss, valid_loss
                 )
             )
-            if args.log_wandb:wandb.log({"loss/decoder_loss": train_loss})
+            if args.log_wandb:
+                wandb.log({"loss/decoder_loss": train_loss})
 
     load_model(decoder, "./out/checkpoint/" + args.checkpoint_decoder + ".pt")
     # for name, param in decoder.named_parameters():
     #     if param.requires_grad:
     #         print(name, param.data)
     # breakpoint()
-    if args.log_wandb:wandb.run.summary["best_loss_decoder"] = early_stopping_decoder.best_score
+    if args.log_wandb:
+        wandb.run.summary["best_loss_decoder"] = early_stopping_decoder.best_score
 
     # test
     list_acc = []
@@ -320,13 +340,20 @@ if __name__ == "__main__":
             # output_dim=args.output_dim,
             interpolate=args.interpolate,
             corr=corr,
-            args=args
+            args=args,
         )
         test_dataloader = DataLoader(
             test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0
         )
         list_prd, list_grt, _ = test_atten_decoder_fn(
-            stdgi, decoder, test_dataloader, device, mse_loss, args.interpolate, scaler, args=args
+            stdgi,
+            decoder,
+            test_dataloader,
+            device,
+            mse_loss,
+            args.interpolate,
+            scaler,
+            args=args,
         )
         output_arr = np.concatenate(
             (np.array(list_grt).reshape(-1, 1), np.array(list_prd).reshape(-1, 1)),
@@ -337,11 +364,12 @@ if __name__ == "__main__":
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
         out_df.to_csv(out_dir + f"Station_{test_station}.csv")
-        mae, mse, mape,rmse, r2, corr_, mdape= cal_acc(list_prd, list_grt)
-        list_acc.append([test_station, mae, mse, mape,mdape, rmse, r2, corr_])
+        mae, mse, mape, rmse, r2, corr_, mdape = cal_acc(list_prd, list_grt)
+        list_acc.append([test_station, mae, mse, mape, mdape, rmse, r2, corr_])
         predict[test_station] = {"grt": list_grt, "prd": list_prd}
         print("Test Accuracy: {}".format(mae, mse, corr))
-        if args.log_wandb:wandb.log({f"Station_{test_station}": list_prd})
+        if args.log_wandb:
+            wandb.log({f"Station_{test_station}": list_prd})
 
     for test_station in args.test_station:
         df = pd.DataFrame(data=predict[test_station], columns=["grt", "prd"])
@@ -352,10 +380,11 @@ if __name__ == "__main__":
     list_acc.append(tmp)
     df = pd.DataFrame(
         np.array(list_acc),
-        columns=["STATION", "MAE", "MSE", "MAPE","MDAPE", "RMSE", "R2", "CORR"],
+        columns=["STATION", "MAE", "MSE", "MAPE", "MDAPE", "RMSE", "R2", "CORR"],
     )
     print(df)
-    if args.log_wandb:wandb.log({"test_acc": df})
+    if args.log_wandb:
+        wandb.log({"test_acc": df})
     for test_station in args.test_station:
         prd = predict[test_station]["prd"]
         grt = predict[test_station]["grt"]
@@ -366,5 +395,7 @@ if __name__ == "__main__":
         ax.plot(np.arange(x), prd[:x], label="prd")
         ax.legend()
         ax.set_title(f"Tram_{test_station}")
-        if args.log_wandb:wandb.log({"Tram_{}".format(test_station): wandb.Image(fig)})
-    if args.log_wandb: wandb.finish()
+        if args.log_wandb:
+            wandb.log({"Tram_{}".format(test_station): wandb.Image(fig)})
+    if args.log_wandb:
+        wandb.finish()

@@ -318,6 +318,8 @@ class AQDataSet(Dataset):
             climate = self.climate_test[index + self.input_len - 1, :]
             if self.corr is not None:
                 list_G = [G,self.corr_matrix_test]
+            else: 
+                list_G = [G]
         elif self.valid:
             x = self.X_test[index : index + self.input_len, :]
             y = self.Y_test[index + self.input_len - 1, 0]
@@ -326,6 +328,8 @@ class AQDataSet(Dataset):
             climate = self.climate_test[index + self.input_len - 1, :]
             if self.corr is not None:
                 list_G = [G,self.corr_matrix_test]
+            else: 
+                list_G = [G]
         else:
             # chon 1 tram ngau  nhien trong 28 tram lam target tai moi sample
             # import pdb; pdb.set_trace()
@@ -349,6 +353,8 @@ class AQDataSet(Dataset):
             if self.corr is not None:
                 corr_matrix = self.get_corr_matrix(lst_col_train_int)
                 list_G = [G,corr_matrix]
+            else: 
+                list_G = [G]
             l = self.get_reverse_distance_matrix(
                 lst_col_train_int, picked_target_station_int
             )
@@ -360,10 +366,7 @@ class AQDataSet(Dataset):
             "l": np.array(l),
             "climate": climate,
         }
-        if self.corr is None:
-            sample["G"] = G
-        else:
-            sample["G"] = np.stack(list_G,-1)
+        sample["G"] = np.stack(list_G,-1)
         # breakpoint()
         return sample
 
