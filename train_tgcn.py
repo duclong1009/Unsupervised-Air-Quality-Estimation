@@ -356,8 +356,6 @@ if __name__ == "__main__":
     # test
     list_acc = []
     predict = {}
-    # print(args.test_station)
-    # print(args.train_station)
     for test_station in args.test_station:
         test_dataset = AQDataSet(
             data_df=trans_df,
@@ -396,14 +394,11 @@ if __name__ == "__main__":
         list_acc.append([test_station, mae, mse, mape, mdape, rmse, r2, corr_])
         predict[test_station] = {"grt": list_grt, "prd": list_prd}
         print("Test Accuracy: {}".format(mae, mse, corr))
-        if args.log_wandb:
-            wandb.log({f"Station_{test_station}": list_prd})
 
     for test_station in args.test_station:
         df = pd.DataFrame(data=predict[test_station], columns=["grt", "prd"])
-        df.to_csv(
-            "./result/{}/Station_{}.csv".format(test_name, test_station), index=False
-        )
+        if args.log_wandb:
+            wandb.log({f"Station_{test_station}": df})
     tmp = np.array(list_acc).mean(0)
     list_acc.append(tmp)
     df = pd.DataFrame(
