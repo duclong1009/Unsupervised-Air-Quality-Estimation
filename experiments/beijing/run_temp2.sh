@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=3 python train_tgcn.py --stdgi_noise_min 0.4 --stdgi_noise_max 0.8 --name "100eps" --en_hid1 64 --en_hid2 64 --num_epochs_stdgi 100 --num_epochs_decoder 100 --model_type gede  --dataset "beijing"  --group_name "_UK" --decoder_type temporal_attention_v2 --seed 2

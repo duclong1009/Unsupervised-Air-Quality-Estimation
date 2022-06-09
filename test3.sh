@@ -1,1 +1,0 @@
-CUDA_VISIBLE_DEVICES=2 python train_egcn.py --input_dim 8 --stdgi_noise_min 0.4 --stdgi_noise_max 0.8 --name wo_gcn --en_hid1 64 --en_hid2 64 --checkpoint_decoder decoder_wogcn --checkpoint_stdgi stdgi_wogcn --num_epochs_stdgi 30 --num_epochs_decoder 30 --model_type wogcn  --dataset "uk"  --log_wandb

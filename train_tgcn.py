@@ -9,18 +9,20 @@ from tqdm.notebook import tqdm
 import matplotlib.pyplot as plt
 import pandas as pd
 from src.modules.train.test import cal_acc, test_atten_decoder_fn
-from utils.ultilities import config_seed, load_model, save_checkpoint, EarlyStopping
+from utils.ultilities import config_seed, load_model, EarlyStopping
 from utils.loader import get_data_array, preprocess_pipeline, AQDataSet
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from src.models.stdgi import EGCN_STDGI, Attention_STDGI
+from src.models.stdgi import Attention_STDGI
 from src.models.decoder import (
     Decoder,
     Global_Decoder,
     Local_Decoder,
     Local_Global_Decoder,
-
+    Local_Global_Decoder_Temporal,
+    Local_Global_Decoder_Temporal_v2,
+    Local_Global_Decoder_Temporal_v3,
     WoCli_Decoder,
 )
 from src.modules.train.train import (
@@ -50,7 +52,7 @@ def parse_args():
     parser.add_argument("--output_dim", default=1, type=int)
     parser.add_argument("--sequence_length", default=12, type=int)
     parser.add_argument("--batch_size", default=32, type=int)
-    parser.add_argument("--patience", default=20, type=int)
+    parser.add_argument("--patience", default=10, type=int)
     parser.add_argument("--lr_stdgi", default=0.001, type=float)
     parser.add_argument("--num_epochs_stdgi", default=100, type=int)
     parser.add_argument("--output_stdgi", default=60, type=int)
@@ -69,9 +71,23 @@ def parse_args():
     parser.add_argument("--fc_hid_dim", default=128, type=int)
     parser.add_argument("--rnn_type", default="LSTM", type=str)
     parser.add_argument("--n_layers_rnn", default=1, type=int)
-    
+
     # Config Data
-    parser.add_argument("--decoder_type", default="default", type=str,choices=["default","local_attention","global_attention","localglobal_attention","wo_cli"])
+    parser.add_argument(
+        "--decoder_type",
+        default="default",
+        type=str,
+        choices=[
+            "default",
+            "local_attention",
+            "global_attention",
+            "localglobal_attention",
+            "wo_cli",
+            "temporal_attention_v1",
+            "temporal_attention_v2",
+            "temporal_attention_v3"
+        ],
+    )
     parser.add_argument("--train_pct", default=0.6, type=float)
     parser.add_argument("--valid_pct", default=0.25, type=float)
     parser.add_argument("--test_pct", default=0.15, type=float)
@@ -92,7 +108,7 @@ def parse_args():
     parser.add_argument(
         "--model_type", type=str, choices=["gede", "wogcn", "wornnencoder"]
     )
-    parser.add_argument("--group_name",type=str,default="",required=True)
+    parser.add_argument("--group_name", type=str, default="", required=True)
     parser.add_argument("--dataset", type=str, choices=["beijing", "uk"])
     return parser.parse_args()
 
@@ -147,7 +163,7 @@ if __name__ == "__main__":
         args.valid_station = [20, 34, 56, 85]
         args.test_station = [97, 98, 134, 137]
     corr = None
-    args.num_input_station = len(args.train_station) -1 
+    args.num_input_station = len(args.train_station) - 1
     train_dataset = AQDataSet(
         data_df=trans_df[:],
         climate_df=climate_df,
@@ -163,7 +179,9 @@ if __name__ == "__main__":
     )
 
     # config["loss"] = 'mse'
-    args.name = f"{args.model_type}_{args.decoder_type}_{args.dataset}_{args.seed}_{args.name}"
+    args.name = (
+        f"{args.model_type}_{args.decoder_type}_{args.dataset}_{args.seed}_{args.name}"
+    )
     if args.log_wandb:
         wandb.init(
             entity="aiotlab",
@@ -172,7 +190,7 @@ if __name__ == "__main__":
             name=f"{args.name}",
             config=config,
         )
-    
+
     # Model Stdgi
     stdgi = Attention_STDGI(
         in_ft=args.input_dim,
@@ -183,7 +201,7 @@ if __name__ == "__main__":
         stdgi_noise_min=args.stdgi_noise_min,
         stdgi_noise_max=args.stdgi_noise_max,
         model_type=args.model_type,
-        num_input_station=args.num_input_station
+        num_input_station=args.num_input_station,
     ).to(device)
     l2_coef = 0.0
     mse_loss = nn.MSELoss()
@@ -212,7 +230,13 @@ if __name__ == "__main__":
     for i in range(args.num_epochs_stdgi):
         if not early_stopping_stdgi.early_stop:
             loss = train_atten_stdgi(
-                stdgi, train_dataloader, stdgi_optimizer_e,stdgi_optimizer_d, bce_loss, device,n_steps=2
+                stdgi,
+                train_dataloader,
+                stdgi_optimizer_e,
+                stdgi_optimizer_d,
+                bce_loss,
+                device,
+                n_steps=2,
             )
             early_stopping_stdgi(loss, stdgi)
             # scheduler_stdgi.step(loss)
@@ -273,7 +297,43 @@ if __name__ == "__main__":
             ).to(device)
         elif args.decoder_type == "localglobal_attention":
             print("Using local and global attention decoder")
-            decoder = Local_Global_Decoder(
+            decoder = Local_Global_Decoder_Temporal_v2(
+                args.input_dim + args.output_stdgi,
+                args.output_dim,
+                n_layers_rnn=args.n_layers_rnn,
+                rnn=args.rnn_type,
+                cnn_hid_dim=args.cnn_hid_dim,
+                fc_hid_dim=args.fc_hid_dim,
+                n_features=len(args.climate_features),
+                num_input_stat=len(args.train_station),
+            ).to(device)
+        elif args.decoder_type == "temporal_attention_v1":
+            print("Using temporal attention decoder")
+            decoder = Local_Global_Decoder_Temporal(
+                args.input_dim + args.output_stdgi,
+                args.output_dim,
+                n_layers_rnn=args.n_layers_rnn,
+                rnn=args.rnn_type,
+                cnn_hid_dim=args.cnn_hid_dim,
+                fc_hid_dim=args.fc_hid_dim,
+                n_features=len(args.climate_features),
+                num_input_stat=len(args.train_station),
+            ).to(device)
+        elif args.decoder_type == "temporal_attention_v3":
+            print("Using temporal attention decoder")
+            decoder = Local_Global_Decoder_Temporal_v3(
+                args.input_dim + args.output_stdgi,
+                args.output_dim,
+                n_layers_rnn=args.n_layers_rnn,
+                rnn=args.rnn_type,
+                cnn_hid_dim=args.cnn_hid_dim,
+                fc_hid_dim=args.fc_hid_dim,
+                n_features=len(args.climate_features),
+                num_input_stat=len(args.train_station),
+            ).to(device)
+        elif args.decoder_type == "temporal_attention_v2":
+            print("Using temporal attention decoder")
+            decoder = Local_Global_Decoder_Temporal_v2(
                 args.input_dim + args.output_stdgi,
                 args.output_dim,
                 n_layers_rnn=args.n_layers_rnn,

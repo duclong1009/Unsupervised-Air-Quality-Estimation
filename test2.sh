@@ -1,1 +1,0 @@
-CUDA_VISIBLE_DEVICES=3 python train_egcn.py --input_dim 8 --stdgi_noise_min 2 --stdgi_noise_max 3 --name gede_24 --en_hid1 64 --en_hid2 64 --checkpoint_decoder decoder_gede_gede_24 --checkpoint_stdgi stdgi_gede_gede_24 --num_epochs_stdgi 30 --num_epochs_decoder 30 --model_type gede  --dataset "uk"  

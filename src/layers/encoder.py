@@ -77,11 +77,14 @@ class Attention_Encoder(nn.Module):
         raw_shape = x.shape
         h = torch.zeros(raw_shape[0],raw_shape[2], self.out_dim, device=torch.device('cuda')) #(1, 19, 400)
         # breakpoint()
+        list_h = []
         for i in range(raw_shape[1]):
             x_i = x[:,i,:,:].squeeze(1) # 1, 19, 200 
             e = adj[:,i,:,:].squeeze(1) # 1, 19, 19
             h = self.rnn_gcn(x_i, e, h)
-        return h
+            list_h.append(h)
+        h_ = torch.stack(list_h, dim=1)
+        return h_
 
 class WoGCN_Encoder(nn.Module):
     def __init__(self, in_ft, hid_ft1, hid_ft2, out_ft, num_input_station,act="relu", device="cuda"):
@@ -133,26 +136,3 @@ class GCN_Encoder(nn.Module):
         x = self.gcn2(x, adj)
         return x
 
-class InterpolateAttentionEncoder(nn.Module):
-    def __init__(self,in_ft, hid_ft1, hid_ft2, out_ft, act="relu"): #in_ft = 28
-        super(InterpolateAttentionEncoder, self).__init__()
-        self.fc = nn.Linear(in_ft, hid_ft1)
-        self.rnn = nn.LSTM(hid_ft1, hid_ft1, batch_first=False, num_layers=1)
-        self.attn = AttentionLSTM(hid_ft1, 120, hid_ft1, 12, 0.1)
-        self.gcn = GCN(hid_ft1, hid_ft2, act)
-        self.gcn2 = GCN(hid_ft2, out_ft, act)
-        self.relu = nn.ReLU()
-
-    def forward(self, x_inp, adj, l):
-        l_ = l / l.sum()
-
-        x = self.relu(self.fc(x_inp))
-        x,h = self.rnn(x)
-        
-        x = self.attn(x)
-        x = self.relu(x.unsqueeze(0))
-
-        x = self.gcn(x, adj)
-        x = self.relu(x)
-        x = self.gcn2(x, adj)
-        return x, h
