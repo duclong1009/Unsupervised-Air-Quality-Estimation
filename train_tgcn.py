@@ -472,7 +472,7 @@ if __name__ == "__main__":
         prd = predict[test_station]["prd"]
         grt = predict[test_station]["grt"]
 
-        df_stat = pd.DataFrame("Predict": prd, "Groundtruth": grt)
+        df_stat = pd.DataFrame({"Predict": prd, "Groundtruth": grt})
         x = len(grt)
         fig, ax = plt.subplots(figsize=(40, 8))
         # ax.figure(figsize=(20,8))
