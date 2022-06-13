@@ -313,4 +313,5 @@ if __name__ == "__main__":
             ax.legend()
             ax.set_title(f"Tram_{test_station}")
             wandb.log({"Seq_{}_Tram_{}".format(seq,test_station): wandb.Image(fig)})
+            
         wandb.finish()

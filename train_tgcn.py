@@ -471,6 +471,8 @@ if __name__ == "__main__":
     for test_station in args.test_station:
         prd = predict[test_station]["prd"]
         grt = predict[test_station]["grt"]
+
+        df_stat = pd.DataFrame("Predict": prd, "Groundtruth": grt)
         x = len(grt)
         fig, ax = plt.subplots(figsize=(40, 8))
         # ax.figure(figsize=(20,8))
@@ -480,5 +482,6 @@ if __name__ == "__main__":
         ax.set_title(f"Tram_{test_station}")
         if args.log_wandb:
             wandb.log({"Tram_{}".format(test_station): wandb.Image(fig)})
+            wandb.log({"Tram_{}_pred_gt".format(test_station): df_stat})
     if args.log_wandb:
         wandb.finish()
