@@ -1,5 +1,5 @@
 # from builtins import breakpoint
-from builtins import breakpoint
+# from builtins import breakpoint
 from src.layers.attention import DotProductAttention
 import torch
 import torch.nn as nn
@@ -83,7 +83,6 @@ class Decoder(nn.Module):
         ret = self.relu(ret)  # (128,64)
         ret = self.linear2(ret)  # (64,1)
         return ret
-
 
 class WoCli_Decoder(nn.Module):
     def __init__(

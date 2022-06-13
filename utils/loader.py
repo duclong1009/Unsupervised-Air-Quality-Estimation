@@ -20,6 +20,7 @@ from typing import (
     NamedTuple,
     Callable,
 )
+import math
 import torch
 import random
 import numpy as np
@@ -91,17 +92,14 @@ def preprocess_pipeline(df, args):
     res_aq = res_.copy()
     res_climate = res_.copy()
     if args.use_wind:
-        res_climate[:,-1] = res[:,-1]
-    
+        res_aq[:,-1] = res[:,-1]
+
     res_aq = np.reshape(res_aq, (-1, b, c))
     res_climate = np.reshape(res_climate, (-1, b, c))
-
     # res = np.reshape(res, (-1, b, c))
-    # breakpoint()
     trans_df = res_aq[:, :, :]
-
     idx_climate = 5 if args.dataset == 'uk' else 7
-    climate_df = res_climate[:, :, idx_climate:]
+    climate_df = res_climate[:, :, idx_climate:] # bo feature cuoi vi k quan tam huong gio
     del res_aq
     del res_climate 
     del res
@@ -179,8 +177,23 @@ def get_data_array(args, file_path):
     # breakpoint()
     return list_arr, location_, station, columns, corr
 
+def convert_2_point_coord_to_direction(coords1, coords2):
+    x_dest, y_dest = coords1
+    x_target, y_target = coords2 
 
-# from torchvision import transforms
+    deltaX = x_target - x_dest
+    deltaY = y_target - y_dest
+
+    degrees_temp = math.atan2(deltaX, deltaY)/math.pi*180
+
+    if degrees_temp < 0:
+        degrees_final = 360 + degrees_temp
+    else:
+        degrees_final = degrees_temp
+    compass_brackets = ["N", "NE", "E", "SE", "S", "SW", "W", "NW", "N"]
+    compass_lookup = round(degrees_final / 45)
+    return compass_brackets[compass_lookup], degrees_final
+
 class AQDataSet(Dataset):
     def __init__(
         self,
@@ -200,7 +213,6 @@ class AQDataSet(Dataset):
         assert not (
             test_station in list_train_station
         ), "tram test khong trong tram train"
-        # self.list_cols_train = ["Station_{}".format(i) for i in list_train_station]
         self.list_cols_train_int = list_train_station
         self.input_len = input_dim
         self.test = test
@@ -218,20 +230,26 @@ class AQDataSet(Dataset):
         idx_test = int(len(data_df) * (1- self.test_cpt))
         # phan data train thi khong lien quan gi den data test 
         self.X_train = data_df[:idx_test,:, :]
-        self.climate_train = climate_df[:idx_test,:, :]
 
+
+        self.climate_train = climate_df[:idx_test,:, :]
+        
         # test data
         if self.test:
             # phan data test khong lien quan gi data train 
             test_station = int(test_station)
+            self.test_station = test_station
             lst_cols_input_test_int = list(
                 set(self.list_cols_train_int) - set([self.list_cols_train_int[-1]])
             )
-            
+
             self.X_test = data_df[idx_test:, lst_cols_input_test_int,:]
-            # convert data gio theo target station 
-            # if self.use_wind:
-            #     self.X_test = self.convert_wind(self.X_test, lst_cols_input_test_int, test_station)
+
+
+            lst_angle = self.get_list_angles(test_station, lst_cols_input_test_int)
+            if self.use_wind:
+                impact_wind = self.convert_wind(self.X_test, lst_angle)
+                self.X_test[:,:,-1] = impact_wind
 
             self.l_test = self.get_reverse_distance_matrix(
                 lst_cols_input_test_int, test_station
@@ -244,14 +262,18 @@ class AQDataSet(Dataset):
         elif self.valid:
             # phan data test khong lien quan gi data train 
             test_station = int(test_station)
+            self.test_station = test_station
             lst_cols_input_test_int = list(
                 set(self.list_cols_train_int) - set([self.list_cols_train_int[-1]])
             )
             
             self.X_test = data_df[:idx_test, lst_cols_input_test_int,:]
+
+            lst_angle = self.get_list_angles(test_station, lst_cols_input_test_int)
             # convert data gio theo target station 
-            # if self.use_wind:
-            #     self.X_test = self.convert_wind(self.X_test, lst_cols_input_test_int, test_station)
+            if self.use_wind:
+                impact_wind = self.convert_wind(self.X_test, lst_angle)
+                self.X_test[:,:,-1] = impact_wind
 
             self.l_test = self.get_reverse_distance_matrix(
                 lst_cols_input_test_int, test_station
@@ -265,6 +287,15 @@ class AQDataSet(Dataset):
     def get_distance(self, coords_1, coords_2):
         import geopy.distance
         return geopy.distance.geodesic(coords_1, coords_2).km
+
+    def get_list_angles(self, test_stat, list_stat):
+        target_stat = tuple(self.location[test_stat, :])
+        angles = []
+        for stat in list_stat:
+            source_stat = tuple(self.location[stat, :])
+            angle  = convert_2_point_coord_to_direction(source_stat, target_stat)
+            angles.append(angle[1])
+        return angles 
 
     def get_distance_matrix(self, list_col_train_int, target_station):
         matrix = []
@@ -303,8 +334,30 @@ class AQDataSet(Dataset):
         adjacency_matrix = np.repeat(adjacency_matrix, self.input_len, 0)
         return adjacency_matrix
 
-    def convert_wind(self, x, stations, target_station):
-        pass 
+    def convert_wind(self, x, lst_angles):
+        def convert_to_score(modified_wind_angle):
+            if abs(modified_wind_angle) >180:
+                diff_angle = 360 - abs(modified_wind_angle)
+            else:
+                diff_angle = abs(modified_wind_angle)
+            if diff_angle > 90:
+                impact = 0
+            else:
+                degree_rad = diff_angle * math.pi / 180
+                impact = math.cos(degree_rad)
+            return impact 
+
+        wind_angle = x[:,:,-1]
+        wind_strength = x[:,:,-2]
+        shape_wind = wind_angle.shape
+        stat_angle_ = np.array(lst_angles)
+        stat_angle = np.tile(stat_angle_, (shape_wind[0], 1))
+        modified_wind_angle = wind_angle - stat_angle 
+        modified_func = np.vectorize(convert_to_score)
+        # map_wind_to_impact = lambda x: convert_to_score(x)
+        impact_wind_angle = modified_func(modified_wind_angle)
+        return impact_wind_angle
+
 
     def __getitem__(self, index: int):
         list_G = []
@@ -330,17 +383,17 @@ class AQDataSet(Dataset):
                 list_G = [G]
         else:
             # chon 1 tram ngau  nhien trong 28 tram lam target tai moi sample
-            # import pdb; pdb.set_trace()
             picked_target_station_int = random.choice(self.list_cols_train_int)
-            # print(picked_target_station_int)
             lst_col_train_int = list(
                 set(self.list_cols_train_int) - set([picked_target_station_int])
             )
             x = self.X_train[index : index + self.input_len, lst_col_train_int, :]
-            # convert data gio theo station
-            # if self.add_wind: 
-            #     x = self.convert_wind(x, lst_col_train_int, picked_target_station_int)
-            # x = np.expand_dims(x, -1)
+
+            lst_angle = self.get_list_angles(picked_target_station_int, lst_col_train_int)
+            if self.use_wind:
+                impact_wind = self.convert_wind(x, lst_angle)
+                x[:,:,-1] = impact_wind
+            
             y = self.X_train[index + self.input_len - 1, picked_target_station_int, 0]
             climate = self.climate_train[
                 index + self.input_len - 1, picked_target_station_int, :
