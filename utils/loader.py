@@ -97,15 +97,16 @@ def preprocess_pipeline(df, args):
     res_aq = np.reshape(res_aq, (-1, b, c))
     res_climate = np.reshape(res_climate, (-1, b, c))
     # res = np.reshape(res, (-1, b, c))
-    trans_df = res_aq[:, :, :]
-    if args.dataset == "uk":
-        idx_climate =5 
-    elif args.dataset == "hanoi":
-        idx_climate = 1
-    elif args.dataset == "beijing":
-        idx_climate = 7
-    else:
-        raise ValueError("Dataset not supported")
+    idx_climate = args.idx_climate
+    trans_df = res_aq[:, :, :idx_climate]
+    # if args.dataset == "uk":
+    #     idx_climate =5 
+    # elif args.dataset == "hanoi":
+    #     idx_climate = 1
+    # elif args.dataset == "beijing":
+    #     idx_climate = 7
+    # else:
+    #     raise ValueError("Dataset not supported")
     climate_df = res_climate[:, :, idx_climate:] # bo feature cuoi vi k quan tam huong gio
     del res_aq
     del res_climate 
@@ -150,14 +151,15 @@ def location_arr(file_path, res):
 def get_data_array(args, file_path):
     # columns1 = ["PM2.5", "PM10", "O3", "SO2", "NO2", "CO", "AQI"]
     # import pdb; pdb.set_trace()
-    if args.dataset == 'uk':
-        columns1 = ["PM2.5", "PM10", "O3", "SO2", "NO2"]
-    elif args.dataset == 'beijing':
-        columns1 = ['PM2.5','AQI','PM10','CO','NO2','O3','SO2']
-    elif args.dataset == "hanoi":
-        columns1 = ["PM2.5"]
-    else:
-        raise ValueError("Dataset not supported")
+    columns1 = args.features
+    # if args.dataset == 'uk':
+    #     columns1 = ["PM2.5", "PM10", "O3", "SO2", "NO2"]
+    # elif args.dataset == 'beijing':
+    #     columns1 = ['PM2.5','AQI','PM10','CO','NO2','O3','SO2']
+    # elif args.dataset == "hanoi":
+    #     columns1 = ["PM2.5"]
+    # else:
+    #     raise ValueError("Dataset not supported")
     columns2 = args.climate_features
     columns = columns1 + columns2
     location_df = pd.read_csv(file_path + "location.csv")
@@ -186,7 +188,7 @@ def get_data_array(args, file_path):
     del location
     del location_df
     # breakpoint()
-    return list_arr, location_, station, columns, corr
+    return list_arr, location_, station, columns1, corr
 
 def convert_2_point_coord_to_direction(coords1, coords2):
     x_dest, y_dest = coords1

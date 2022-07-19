@@ -1,4 +1,5 @@
 import argparse
+from builtins import breakpoint
 from distutils.util import copydir_run_2to3
 import torch
 import torch.nn as nn
@@ -105,6 +106,7 @@ def parse_args():
         ],
         type=list,
     )
+    parser.add_argument("--features",default='PM2.5',type=str)
     parser.add_argument(
         "--model_type", type=str, choices=["gede", "wogcn", "wornnencoder"]
     )
@@ -132,8 +134,10 @@ if __name__ == "__main__":
 
     config_seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    args.group_name = "Features_merged_AQ_{}".format(args.dataset)
     # device = torch.device("cpu")
-
+    args.features = args.features.split(",")
+    args.idx_climate = len(args.features)
     if args.dataset == "uk":
         file_path = "./data/uk_AQ/"
     elif args.dataset == "beijing":
@@ -156,36 +160,21 @@ if __name__ == "__main__":
     args.input_dim = len(features_name)
     # print(station)
     trans_df, climate_df, scaler = preprocess_pipeline(comb_arr, args)
+    # breakpoint()
     config["features"] = features_name
     test_name = "test1"
     if args.dataset == "beijing":
-        # distance 
-        # args.train_station = [18, 11, 3, 15, 8, 1, 9]
-        # args.valid_station = [12, 7, 2, 10, 13]
-        # args.test_station = [0, 4, 5, 6]
-        # random
-        # args.train_station = [2, 23, 8, 19, 1, 22, 16]
-        # args.valid_station = [12, 7, 3, 10, 13]
-        # args.test_station = [0, 4, 5, 6]
-        #corr 
-        args.train_station = [9, 15, 16, 10, 12, 19, 21]
-        args.valid_station = [18, 8, 10, 3, 1]
+        args.train_station = [18,11,3,15,8,1,9]
+        args.valid_station = [12,7,2,10,13]
         args.test_station = [0, 4, 5, 6]
     elif args.dataset == "uk":
-        # distance
-        # args.train_station = [15, 17, 19, 21, 48, 73, 96, 114, 131]
-        # args.valid_station = [20, 34, 56, 85]
-        # args.test_station = [97, 98, 134, 137]
-        # random
-        args.train_station = [13, 26, 49, 79, 48, 73, 81, 113, 122]
-        args.valid_station = [20, 34, 56, 85]
+        args.train_station = [15,17,19,21,48,73,96,114,131]
+        args.valid_station = [20,34,56,85]
         args.test_station = [97, 98, 134, 137]
     elif args.dataset == "hanoi":
         args.train_station = [55, 53, 69, 49, 10, 37, 64, 41, 45, 19, 60, 2, 7, 40, 32, 52, 54, 17, 0, 18, 35, 56, 67, 33, 22, 44, 61, 30, 72, 16, 65, 24, 39, 29, 71,6, 74, 58,36, 5, 9, 70]
         args.valid_station = [50, 46, 62, 31, 14, 25, 11, 26, 3, 66, 68, 63, 57, 20, 8, 34, 21,42, 13,43, 73]
         args.test_station = [1, 4, 38, 12, 47, 48, 51, 23, 28,59,27, 15]
-
-        # print("Number of station: ",len(set(args.train_station) + set(args.valid_station) + set(args.test_station)))
     corr = None
     args.num_input_station = len(args.train_station) - 1
     train_dataset = AQDataSet(
@@ -210,7 +199,7 @@ if __name__ == "__main__":
         wandb.init(
             entity="aiotlab",
             project="Spatial_PM2.5",
-            group="merged_AQ_{}".format(args.dataset),
+            group="Features_merged_AQ_{}".format(args.dataset),
             name=f"{args.name}",
             config=config,
         )

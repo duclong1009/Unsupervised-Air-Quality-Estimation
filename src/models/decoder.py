@@ -52,8 +52,8 @@ class Decoder(nn.Module):
 
     def forward(self, x, h, l, climate):
         """
-        x.shape = batch_size x (n1-1) x num_ft
-        h.shape = batch_size x (n1-1) x latent_dim
+        x.shape = batch_size x n_ts x (n1-1) x num_ft
+        h.shape = batch_size x n_ts x(n1-1) x latent_dim
         l.shape = (n1-1) x 1 = (27* 1)
         """
         x = x[:, -1, :, :]
@@ -66,9 +66,7 @@ class Decoder(nn.Module):
             x_ = x_.reshape(x_size[0], x_size[1], -1)
         else:
             x_ = x_.reshape(x_size[0], 1, -1)
-        # hid_state = torch.zeros(1, batch_size, self.in_ft).to(DEVICE)
         output, hid_state = self.rnn(x_)  # output = (bs, 12, 426)
-        # output = self.relu(self.fc(x_))
         output = output.reshape(
             output.shape[0], output.shape[1], self.num_input_stat, -1
         )
