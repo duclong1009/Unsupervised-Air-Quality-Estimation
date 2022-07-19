@@ -379,9 +379,9 @@ class Local_Global_Decoder(nn.Module):
         self.value = nn.Linear(cnn_hid_dim, cnn_hid_dim)
     def forward(self, x, h, l, climate):
         """
-        x.shape = batch_size x (n1-1) x num_ft
-        h.shape = batch_size x (n1-1) x latent_dim
-        l.shape = (n1-1) x 1 = (27* 1)
+            x.shape = batch_size x (n1-1) x num_ft
+            h.shape = batch_size x (n1-1) x latent_dim
+            l.shape = (n1-1) x 1 = (27* 1)
         """
         x = x[:, -1, :, :]
         h = h[:, -1, :, :]

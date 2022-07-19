@@ -85,7 +85,7 @@ def parse_args():
             "wo_cli",
             "temporal_attention_v1",
             "temporal_attention_v2",
-            "temporal_attention_v3"
+            "temporal_attention_v3",
         ],
     )
     parser.add_argument("--train_pct", default=0.6, type=float)
@@ -109,7 +109,7 @@ def parse_args():
         "--model_type", type=str, choices=["gede", "wogcn", "wornnencoder"]
     )
     parser.add_argument("--group_name", type=str, default="", required=True)
-    parser.add_argument("--dataset", type=str, choices=["beijing", "uk"])
+    parser.add_argument("--dataset", type=str, choices=["beijing", "uk","hanoi"])
     return parser.parse_args()
 
 
@@ -138,6 +138,10 @@ if __name__ == "__main__":
         file_path = "./data/uk_AQ/"
     elif args.dataset == "beijing":
         file_path = "./data/beijing_AQ/"
+    elif args.dataset == "hanoi":
+        file_path = "./data/AQ_hanoi/"
+        args.climate_features = ["humidity", "temperature"]
+        args.use_wind = False  # Hanoi has no wind data
     if args.use_wind:
         args.climate_features = [
             "2m_temperature",
@@ -155,13 +159,33 @@ if __name__ == "__main__":
     config["features"] = features_name
     test_name = "test1"
     if args.dataset == "beijing":
-        args.train_station = [18, 11, 3, 15, 8, 1, 9]
-        args.valid_station = [12, 7, 2, 10, 13]
+        # distance 
+        # args.train_station = [18, 11, 3, 15, 8, 1, 9]
+        # args.valid_station = [12, 7, 2, 10, 13]
+        # args.test_station = [0, 4, 5, 6]
+        # random
+        # args.train_station = [2, 23, 8, 19, 1, 22, 16]
+        # args.valid_station = [12, 7, 3, 10, 13]
+        # args.test_station = [0, 4, 5, 6]
+        #corr 
+        args.train_station = [9, 15, 16, 10, 12, 19, 21]
+        args.valid_station = [18, 8, 10, 3, 1]
         args.test_station = [0, 4, 5, 6]
     elif args.dataset == "uk":
-        args.train_station = [15, 17, 19, 21, 48, 73, 96, 114, 131]
+        # distance
+        # args.train_station = [15, 17, 19, 21, 48, 73, 96, 114, 131]
+        # args.valid_station = [20, 34, 56, 85]
+        # args.test_station = [97, 98, 134, 137]
+        # random
+        args.train_station = [13, 26, 49, 79, 48, 73, 81, 113, 122]
         args.valid_station = [20, 34, 56, 85]
         args.test_station = [97, 98, 134, 137]
+    elif args.dataset == "hanoi":
+        args.train_station = [55, 53, 69, 49, 10, 37, 64, 41, 45, 19, 60, 2, 7, 40, 32, 52, 54, 17, 0, 18, 35, 56, 67, 33, 22, 44, 61, 30, 72, 16, 65, 24, 39, 29, 71,6, 74, 58,36, 5, 9, 70]
+        args.valid_station = [50, 46, 62, 31, 14, 25, 11, 26, 3, 66, 68, 63, 57, 20, 8, 34, 21,42, 13,43, 73]
+        args.test_station = [1, 4, 38, 12, 47, 48, 51, 23, 28,59,27, 15]
+
+        # print("Number of station: ",len(set(args.train_station) + set(args.valid_station) + set(args.test_station)))
     corr = None
     args.num_input_station = len(args.train_station) - 1
     train_dataset = AQDataSet(

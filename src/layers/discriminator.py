@@ -11,11 +11,9 @@ class Discriminator(nn.Module):
         self.relu = nn.ReLU()
 
     def forward(self, h, x, x_c):
-        
         ret1 = self.relu(self.fc(h, x)) 
         ret1 = self.linear(ret1)
         ret2 = self.relu(self.fc(h, x_c))
         ret2 = self.linear(ret2)
         ret = torch.cat((ret1, ret2), 2)
         return self.sigmoid(ret)
-

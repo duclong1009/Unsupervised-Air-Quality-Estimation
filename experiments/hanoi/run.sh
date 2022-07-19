@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=0 python train_tgcn.py --stdgi_noise_min 0.4 --stdgi_noise_max 0.8 --name "" --en_hid1 128 --en_hid2 128 --num_epochs_stdgi 30 --num_epochs_decoder 30 --model_type gede  --dataset "hanoi"  --group_name "_hanoi" --decoder_type default --log_wandb --batch_size 1
