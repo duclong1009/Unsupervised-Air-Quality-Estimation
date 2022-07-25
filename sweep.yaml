@@ -1,13 +1,13 @@
-program: train_attention_stdgi_test_wo_ssa.py
+program: train_tgcn.py
 method: grid
 metric:
   name: mape
   goal: minimize
 parameters:
   batch_size:
-    values: [16,32,64]
-  lr_stdgi:
-    values: [0.001, 0.005, 0.0001, 0.00005]
+    values: [32]
+  # lr_stdgi:
+  #   values: [0.001, 0.005, 0.0001, 0.00005]
   lr_decoder:
     values: [0.001, 0.005, 0.0001, 0.00005]
   cnn_hid_dim:
@@ -18,3 +18,7 @@ parameters:
     values: [64,128,256]
   en_hid2:
     values: [64,128,256]
+  # features:
+  #   values: "PM2.5,wind_speed"
+  # dataset:
+  #   values: "beijing"

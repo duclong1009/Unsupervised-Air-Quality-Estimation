@@ -76,7 +76,7 @@ def parse_args():
     # Config Data
     parser.add_argument(
         "--decoder_type",
-        default="default",
+        default="global_attention",
         type=str,
         choices=[
             "default",
@@ -106,12 +106,12 @@ def parse_args():
         ],
         type=list,
     )
-    parser.add_argument("--features",default='PM2.5',type=str)
+    parser.add_argument("--features",default='PM2.5,wind_speed',type=str)
     parser.add_argument(
-        "--model_type", type=str, choices=["gede", "wogcn", "wornnencoder"]
+        "--model_type", type=str, choices=["gede", "wogcn", "wornnencoder"],default='gede'
     )
-    parser.add_argument("--group_name", type=str, default="", required=True)
-    parser.add_argument("--dataset", type=str, choices=["beijing", "uk","hanoi"])
+    # parser.add_argument("--group_name", type=str, default="", required=True)
+    parser.add_argument("--dataset", type=str, choices=["beijing", "uk","hanoi"],default="beijing")
     return parser.parse_args()
 
 
@@ -134,7 +134,7 @@ if __name__ == "__main__":
 
     config_seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    args.group_name = "Features_merged_AQ_{}".format(args.dataset)
+    args.group_name = "Tuning_Features_merged_AQ_{}".format(args.dataset)
     # device = torch.device("cpu")
     args.features = args.features.split(",")
     args.idx_climate = len(args.features)
