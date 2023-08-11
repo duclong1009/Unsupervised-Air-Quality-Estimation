@@ -1,6 +1,5 @@
 import argparse
 from builtins import breakpoint
-from distutils.util import copydir_run_2to3
 import torch
 import torch.nn as nn
 import numpy as np
@@ -34,6 +33,7 @@ from src.modules.train.train import (
 from src.modules.train.train import train_atten_stdgi
 import os
 
+import time 
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -110,7 +110,7 @@ def parse_args():
     parser.add_argument(
         "--model_type", type=str, choices=["gede", "wogcn", "wornnencoder"],default='gede'
     )
-    # parser.add_argument("--group_name", type=str, default="", required=True)
+    parser.add_argument("--group_name", type=str, default="", required=True)
     parser.add_argument("--dataset", type=str, choices=["beijing", "uk","hanoi"],default="beijing")
     return parser.parse_args()
 
@@ -122,6 +122,7 @@ import wandb
 import json
 
 if __name__ == "__main__":
+    t_t = time.time()
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s :: %(levelname)s :: %(message)s"
     )
@@ -478,6 +479,11 @@ if __name__ == "__main__":
         np.array(list_acc),
         columns=["STATION", "MAE", "MSE", "MAPE", "MDAPE", "RMSE", "R2", "CORR"],
     )
+    saved_log = "_".join(args.features)
+    import os
+    if not os.path.exists(f"log_infor/{saved_log}"):
+        os.makedirs(f"log_infor/{saved_log}")
+    df.to_csv("log_infor/{saved_log}/acc.csv")
     print(df)
     if args.log_wandb:
         wandb.log({"test_acc": df})
@@ -498,3 +504,4 @@ if __name__ == "__main__":
             wandb.log({"Tram_{}_pred_gt".format(test_station): df_stat})
     if args.log_wandb:
         wandb.finish()
+    print("Total time: ", time.time() - t_t)

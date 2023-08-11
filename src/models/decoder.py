@@ -341,27 +341,6 @@ class Local_Global_Decoder(nn.Module):
         self.out_ft = out_ft
         self.n_layers_rnn = n_layers_rnn
         self.num_input_stat = num_input_stat - 1
-        if rnn == "GRU":
-            self.rnn = nn.GRU(
-                in_ft * (self.num_input_stat),
-                in_ft * (self.num_input_stat),
-                batch_first=True,
-                num_layers=n_layers_rnn,
-            )
-        elif rnn == "LSTM":
-            self.rnn = nn.LSTM(
-                in_ft * self.num_input_stat,
-                in_ft * self.num_input_stat,
-                batch_first=True,
-                num_layers=n_layers_rnn,
-            )
-        else:
-            self.rnn = nn.RNN(
-                in_ft * self.num_input_stat,
-                in_ft * self.num_input_stat,
-                batch_first=True,
-                num_layers=n_layers_rnn,
-            )
         self.embed = nn.Linear(n_features, cnn_hid_dim)
         self.linear = nn.Linear(in_features=cnn_hid_dim*3, out_features=fc_hid_dim)
         self.linear2 = nn.Linear(fc_hid_dim, out_ft)
