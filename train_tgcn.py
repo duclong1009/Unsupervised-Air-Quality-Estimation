@@ -135,7 +135,7 @@ if __name__ == "__main__":
 
     config_seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    args.group_name = "Tuning_Features_merged_AQ_{}".format(args.dataset)
+    args.group_name = "Shapley_value_{}".format(args.dataset)
     # device = torch.device("cpu")
     args.features = args.features.split(",")
     args.idx_climate = len(args.features)
@@ -200,7 +200,7 @@ if __name__ == "__main__":
         wandb.init(
             entity="aiotlab",
             project="Spatial_PM2.5",
-            group="Features_merged_AQ_{}".format(args.dataset),
+            group=args.group_name,
             name=f"{args.name}",
             config=config,
         )
@@ -483,7 +483,7 @@ if __name__ == "__main__":
     import os
     if not os.path.exists(f"log_infor/{saved_log}"):
         os.makedirs(f"log_infor/{saved_log}")
-    df.to_csv("log_infor/{saved_log}/acc.csv")
+    df.to_csv(f"log_infor/{saved_log}/acc.csv")
     print(df)
     if args.log_wandb:
         wandb.log({"test_acc": df})
