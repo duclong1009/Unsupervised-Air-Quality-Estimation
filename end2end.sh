@@ -1,1 +1,0 @@
-CUDA_VISIBLE_DEVICES=2 python traine2e.py --input_dim 8 --name end2end --en_hid1 64 --en_hid2 64 --checkpoint_decoder decoder_end2end --checkpoint_stdgi stdgi_end2end --num_epochs_decoder 0 --log_wandb

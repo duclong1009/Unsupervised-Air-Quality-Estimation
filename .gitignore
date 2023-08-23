@@ -6,3 +6,12 @@ data/
 train_wo_ssa.sh
 output/
 *.ipynb
+/experiments 
+GEDE result
+log_infor
+log_infor_final
+/result
+tuning_fts
+**.csv
+**.json
+**.sh

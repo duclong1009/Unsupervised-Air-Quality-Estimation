@@ -49,7 +49,6 @@ def parse_args():
         type=list,
     )
     # Config STDGI
-    parser.add_argument("--input_dim", default=9, type=int)
     parser.add_argument("--output_dim", default=1, type=int)
     parser.add_argument("--sequence_length", default=12, type=int)
     parser.add_argument("--batch_size", default=32, type=int)
@@ -84,9 +83,6 @@ def parse_args():
             "global_attention",
             "localglobal_attention",
             "wo_cli",
-            "temporal_attention_v1",
-            "temporal_attention_v2",
-            "temporal_attention_v3",
         ],
     )
     parser.add_argument("--train_pct", default=0.6, type=float)
@@ -229,6 +225,8 @@ if __name__ == "__main__":
     if not os.path.exists(f"output/{args.group_name}/checkpoint/"):
         print(f"Make dir output/{args.group_name}/checkpoint/ ...")
         os.makedirs(f"output/{args.group_name}/checkpoint/")
+
+    ## Initialize early stopping
     early_stopping_stdgi = EarlyStopping(
         patience=args.patience,
         verbose=True,

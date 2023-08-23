@@ -1,1 +1,0 @@
-CUDA_VISIBLE_DEVICES=1 python train_tgcn.py --stdgi_noise_min 0.4 --stdgi_noise_max 0.8 --name "random_50eps" --en_hid1 64 --en_hid2 64 --num_epochs_stdgi 50 --num_epochs_decoder 50 --model_type gede  --dataset "uk"  --group_name "_uk" --decoder_type localglobal_attention

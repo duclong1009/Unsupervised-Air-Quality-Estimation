@@ -1,12 +1,9 @@
-# from builtins import breakpoint
-# from builtins import breakpoint
 from operator import imod
 import torch
 import torch.nn as nn
 import torch
-from src.layers.attention import AttentionLSTM
 from src.layers.temporal_gcn import TemporalGCN, GCN
-from src.layers.EGCN import TemporalEGCN
+
 class BaseEncoder(nn.Module):
     # hshape = 64*28*128
     def __init__(self, in_ft, hid_ft1, hid_ft2, out_ft, act="relu"):
@@ -40,27 +37,6 @@ class Encoder(nn.Module):
         x = self.relu(x)
         x = self.gcn2(x, adj)
         return x
-
-# class TemporalEGCNEncoder(nn.Module):
-#     def __init__(self, in_ft, hid_ft1, hid_ft2, out_ft, p,n_layer, batch_size,act="relu"):
-#         super(TemporalEGCNEncoder, self).__init__()
-#         self.fc = nn.Linear(in_ft, hid_ft1)
-#         self.rnn_egcn = TemporalEGCN(in_channels=hid_ft1, out_channels=out_ft, hidden_dim=hid_ft2, p=p, n_layer=n_layer, batch_size=batch_size)
-#         self.out_dim = out_ft
-#         self.relu = nn.ReLU()
-#     def forward(self, x, e):
-#         x = self.relu(self.fc(x)) # 32, 12, 19, 200 
-#         raw_shape = x.shape
-#         h = torch.zeros(raw_shape[0],raw_shape[2], self.out_dim, device=torch.device('cuda')) #(1, 19, 400)
-#         hs = []
-#         breakpoint()
-#         for i in range(raw_shape[1]):
-#             x_i = x[:,i,:,:].squeeze(1)
-#             e_i = e[:,i,:,:].squeeze(1)
-#             h, _ =  self.rnn_egcn(x_i, e_i, h)
-#             hs.append(h.unsqueeze(1))
-#         out =  torch.cat(hs, dim=1)
-#         return out 
 
 class Attention_Encoder(nn.Module):
     def __init__(self, in_ft, hid_ft1, hid_ft2, out_ft, act="relu"):
