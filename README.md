@@ -12,6 +12,8 @@ pip install -r requirements.txt
 ## Data
 Download data from [link](https://drive.google.com/file/d/1JoNoc_EDzV2EOH1vFhYcgMjOQgu-MSMz/view?usp=sharing)
 Download this file, then decompress this file and locate it at the path like that /path-to-repo/data
+
+This file contains data from Beijing(China) and the UK.
 ## Training 
 To train the model from scratch with the default setting
 ```
