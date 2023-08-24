@@ -1,0 +1,35 @@
+model: kidw_tcgru
+data:
+  window: 5 
+  target_idx: 14
+  test_idx:
+    - 20
+    - 21
+    - 22
+    - 23
+    - 24
+    - 25
+    - 26
+    - 27
+    - 28
+    - 29
+    - 30 
+    - 31
+    - 32
+    - 33
+    - 34 
+  train_pct: 0.6
+  valid_pct: 0.25
+  test_pct: 0.15 
+  num_station: 30
+model:
+  lstm_input_size: 1
+  lstm_hidden_size: 64
+  lstm_num_layers: 2
+  linear_hidden_size: 256
+train:
+  batch_size: 16
+  learning_rate: 0.0005
+  learning_rate_decay: 0.5
+  optimizer: adam 
+  epochs: 1
