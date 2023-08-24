@@ -20,15 +20,10 @@ from src.models.decoder import (
     Global_Decoder,
     Local_Decoder,
     Local_Global_Decoder,
-    Local_Global_Decoder_Temporal,
-    Local_Global_Decoder_Temporal_v2,
-    Local_Global_Decoder_Temporal_v3,
     WoCli_Decoder,
 )
 from src.modules.train.train import (
     train_atten_decoder_fn,
-    train_egcn,
-    train_egcn_decoder_fn,
 )
 from src.modules.train.train import train_atten_stdgi
 import os
@@ -309,43 +304,7 @@ if __name__ == "__main__":
             ).to(device)
         elif args.decoder_type == "localglobal_attention":
             print("Using local and global attention decoder")
-            decoder = Local_Global_Decoder_Temporal_v2(
-                args.input_dim + args.output_stdgi,
-                args.output_dim,
-                n_layers_rnn=args.n_layers_rnn,
-                rnn=args.rnn_type,
-                cnn_hid_dim=args.cnn_hid_dim,
-                fc_hid_dim=args.fc_hid_dim,
-                n_features=len(args.climate_features),
-                num_input_stat=len(args.train_station),
-            ).to(device)
-        elif args.decoder_type == "temporal_attention_v1":
-            print("Using temporal attention decoder")
-            decoder = Local_Global_Decoder_Temporal(
-                args.input_dim + args.output_stdgi,
-                args.output_dim,
-                n_layers_rnn=args.n_layers_rnn,
-                rnn=args.rnn_type,
-                cnn_hid_dim=args.cnn_hid_dim,
-                fc_hid_dim=args.fc_hid_dim,
-                n_features=len(args.climate_features),
-                num_input_stat=len(args.train_station),
-            ).to(device)
-        elif args.decoder_type == "temporal_attention_v3":
-            print("Using temporal attention decoder")
-            decoder = Local_Global_Decoder_Temporal_v3(
-                args.input_dim + args.output_stdgi,
-                args.output_dim,
-                n_layers_rnn=args.n_layers_rnn,
-                rnn=args.rnn_type,
-                cnn_hid_dim=args.cnn_hid_dim,
-                fc_hid_dim=args.fc_hid_dim,
-                n_features=len(args.climate_features),
-                num_input_stat=len(args.train_station),
-            ).to(device)
-        elif args.decoder_type == "temporal_attention_v2":
-            print("Using temporal attention decoder")
-            decoder = Local_Global_Decoder_Temporal_v2(
+            decoder = Local_Global_Decoder(
                 args.input_dim + args.output_stdgi,
                 args.output_dim,
                 n_layers_rnn=args.n_layers_rnn,

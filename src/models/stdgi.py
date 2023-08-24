@@ -2,7 +2,6 @@
 # from layers.discriminator import Discriminator
 # from builtins import breakpoint
 import numpy as np
-from src.layers.EGCN import EGCN
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
